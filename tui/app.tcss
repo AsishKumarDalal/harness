@@ -122,6 +122,33 @@ DiffView {
     color: $h-text;
 }
 
+/* --- approval prompt ------------------------------------------------------- */
+ApprovalPrompt {
+    height: auto;
+    display: none;
+    padding: 0 1;
+    background: $h-surface;
+    border: solid $h-warning;
+}
+
+ApprovalPrompt > .approval-title {
+    height: 1;
+    color: $h-warning;
+    text-style: bold;
+}
+
+ApprovalPrompt > .approval-body {
+    height: auto;
+    max-height: 6;
+    overflow-y: auto;
+    color: $h-text;
+}
+
+ApprovalPrompt > .approval-hint {
+    height: 1;
+    color: $h-muted;
+}
+
 /* --- prompt dock ----------------------------------------------------------- */
 #prompt-dock {
     height: auto;

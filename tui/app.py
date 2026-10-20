@@ -23,6 +23,7 @@ from textual.widgets import Markdown, Static
 
 from .adapter import HarnessAdapter
 from .events import (
+    ApprovalNeeded,
     Thinking,
     Token,
     ToolCall,
@@ -33,6 +34,7 @@ from .events import (
     TurnError,
 )
 from .theme import build_theme
+from .widgets.approval import ApprovalPrompt
 from .widgets.hint_bar import HintBar
 from .widgets.prompt import PromptInput
 from .widgets.status_line import StatusBar, git_branch
@@ -82,6 +84,7 @@ class HarnessApp(App[None]):
         yield StatusBar(id="status")
         with VerticalScroll(id="chat"):
             yield Static(WELCOME, id="welcome", classes="welcome")
+        yield ApprovalPrompt(id="approval")
         with Container(id="prompt-dock"):
             yield PromptInput(
                 id="prompt",
@@ -156,6 +159,8 @@ class HarnessApp(App[None]):
             self._on_tool_result(event)
         elif isinstance(event, ToolDiff):
             self._on_tool_diff(event)
+        elif isinstance(event, ApprovalNeeded):
+            self._on_approval(event)
         elif isinstance(event, TurnDone):
             self._on_done(event.content)
         elif isinstance(event, TurnError):
@@ -226,6 +231,21 @@ class HarnessApp(App[None]):
         block = self._tool_blocks.get(event.call_id)
         if block is not None:
             block.add_diff(event.diff, event.path)
+
+    # ------------------------------------------------------------------
+    # approvals
+    # ------------------------------------------------------------------
+
+    def _on_approval(self, event: ApprovalNeeded) -> None:
+        """Ask before a tool that needs a human yes."""
+        prompt = self.query_one("#approval", ApprovalPrompt)
+        prompt.ask(event.call_id, event.name, event.args, event.summary)
+        prompt.focus()                      # y / a / n go to the prompt
+
+    def on_approval_prompt_decided(self, event: ApprovalPrompt.Decided) -> None:
+        event.stop()
+        self.adapter.resolve_approval(event.call_id, event.decision)
+        self.query_one("#prompt", PromptInput).focus()
 
     # ------------------------------------------------------------------
     # actions

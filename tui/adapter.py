@@ -295,6 +295,8 @@ def needs_approval(name: str, args: dict) -> bool:
     """Would the harness ask a human before running this tool?"""
     if safety.blocked_tool_message(name, args):
         return False                            # refused outright, no point asking
+    if safety.mode() == "auto":
+        return False                            # auto mode never prompts
     if name in safety.FREE_TOOLS:
         return False
     if name == "run_command":
