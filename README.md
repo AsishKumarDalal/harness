@@ -1,8 +1,19 @@
-# The Harness
+<p align="center">
+  <img src="assets/harness.svg" alt="The Harness logo" width="96" height="96">
+</p>
 
-A small, complete **agentic coding CLI** — think "Claude Code shape, Python body."
-~1300 lines, stdlib-first, one OpenAI-compatible model endpoint. Built phase
-by phase with [Hermes-agent] as the reference design.
+<h1 align="center">The Harness</h1>
+
+<p align="center">
+  <strong>A small, complete agentic coding CLI</strong> — Claude Code shape, Python body.<br>
+  ~1300 lines, stdlib-first, one OpenAI-compatible model endpoint. Built phase by phase with Hermes-agent as the reference design.
+</p>
+
+<p align="center">
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white">
+  <img alt="License" src="https://img.shields.io/badge/License-Personal%20%2F%20Learning-lightgrey">
+  <img alt="Status" src="https://img.shields.io/badge/Status-Experimental-orange">
+</p>
 
 ```text
 you > refactor the login flow to use sessions instead of cookies
@@ -17,6 +28,7 @@ assistant
   ...synthesized answer...
   model │ ctx 12345/38000 (32%) │ in:9000 out:400
 ```
+
 
 ## Features
 
