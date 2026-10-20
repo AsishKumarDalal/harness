@@ -102,6 +102,14 @@ class HarnessAdapter:
         """Stored sessions, newest first."""
         return sessions.list_sessions(limit)
 
+    def session_label(self) -> str:
+        """A friendly name for the current session: its title, else its id."""
+        if not self.session_id:
+            return ""
+        row = sessions.find_session(self.session_id) or {}
+        title = (row.get("title") or "").strip()
+        return title or self.session_id
+
     # ------------------------------------------------------------------
     # the turn
     # ------------------------------------------------------------------

@@ -57,6 +57,7 @@ Screen {
     width: auto;
     height: auto;
     margin: 0 0 1 0;
+    padding: 0 1;              /* aligns with the text of a user message */
     color: $h-text;
 }
 
@@ -64,6 +65,7 @@ Screen {
     width: auto;
     height: auto;
     margin: 0 0 1 0;
+    padding: 0 1;
     color: $h-muted;
     text-style: italic;
 }
@@ -72,7 +74,13 @@ Screen {
     width: auto;
     height: auto;
     margin: 0 0 1 0;
+    padding: 0 1;
     color: $h-muted;
+}
+
+.help {
+    background: $h-panel;
+    color: $h-text;
 }
 
 /* --- markdown -------------------------------------------------------------- */

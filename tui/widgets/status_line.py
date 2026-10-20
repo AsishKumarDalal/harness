@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from textual.app import ComposeResult
+from rich.text import Text
 from textual.reactive import reactive
 from textual.widgets import Static
 
@@ -34,7 +34,7 @@ class StatusBar(Static):
     DEFAULT_CSS = """
     StatusBar {
         height: 1;
-        padding: 0 1;
+        padding: 0 2;
         color: $muted;
         background: $panel;
     }
@@ -46,8 +46,17 @@ class StatusBar(Static):
     branch: reactive[str] = reactive("")
 
     def render(self):  # type: ignore[override]
-        model = self.model or "—"
-        session = self.session or "—"
-        cwd = self.working_dir or "—"
-        branch = self.branch or "no git"
-        return f"{model}  │  {session}  │  {cwd}  │  {branch}"
+        """The model in the accent colour, the rest muted."""
+        theme = self.app.current_theme
+        accent = theme.accent or theme.primary
+        muted = theme.secondary or "dim"
+
+        text = Text()
+        text.append(self.model or "—", style=accent)
+        text.append("  │  ", style=muted)
+        text.append(self.session or "—")
+        text.append("  │  ", style=muted)
+        text.append(self.working_dir or "—")
+        text.append("  │  ", style=muted)
+        text.append(self.branch or "no git")
+        return text

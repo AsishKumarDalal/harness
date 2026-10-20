@@ -58,11 +58,11 @@ def model_options(current: str) -> list[str]:
     return list(dict.fromkeys(names))
 
 HELP_TEXT = """[b]commands[/]
-  /new [title]   start a fresh session
-  /sessions      list stored sessions
-  /model [name]  show or switch the model
-  /clear         clear the screen (keeps the session)
-  /help          this text
+  /new title         start a fresh session
+  /sessions          list stored sessions
+  /model name        show or switch the model
+  /clear             clear the screen (keeps the session)
+  /help              this text
 
 [b]keys[/]
   enter send · shift+enter newline · esc interrupt · ctrl+p palette · ctrl+c quit"""
@@ -129,13 +129,12 @@ class HarnessApp(App[None]):
         status.model = self.adapter.model
         status.working_dir = str(config.START_DIR)
         status.branch = git_branch(config.START_DIR)
-        title = self.adapter.session_id or "—"
-        status.session = title[:40]
+        status.session = self.adapter.session_label()[:40]
 
-    def _note(self, text: str, markup: bool = False) -> None:
+    def _note(self, text: str, markup: bool = False, extra: str = "") -> None:
         """Small note in the chat area (markup only for our own text)."""
         chat = self.query_one("#chat", VerticalScroll)
-        chat.mount(Static(text, classes="note", markup=markup))
+        chat.mount(Static(text, classes=f"note {extra}".strip(), markup=markup))
         chat.scroll_end(animate=False)
 
     # ------------------------------------------------------------------
@@ -334,7 +333,7 @@ class HarnessApp(App[None]):
         elif command.name == "clear":
             self._clear_chat()
         elif command.name == "help":
-            self._note(HELP_TEXT, markup=True)
+            self._note(HELP_TEXT, markup=True, extra="help")
 
     def _show_sessions(self) -> None:
         """List the stored sessions."""

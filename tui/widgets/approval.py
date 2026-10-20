@@ -60,7 +60,7 @@ class ApprovalPrompt(Container):
     def compose(self):
         yield Static("", id="approval-title", classes="approval-title")
         yield Static("", id="approval-body", classes="approval-body")
-        yield Static("[y] run once   [a] always allow   [n] deny",
+        yield Static("y  run once     a  always allow     n  deny",
                      id="approval-hint", classes="approval-hint")
 
     def ask(self, call_id: str, name: str, args: dict, summary: str = "") -> None:
