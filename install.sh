@@ -25,7 +25,7 @@ if [ -z "$PY" ]; then
 fi
 
 # 2. the venv -------------------------------------------------------------
-if [ -x "$VPY" ] && "$VPY" -c "import openai, dotenv" >/dev/null 2>&1; then
+if [ -x "$VPY" ] && "$VPY" -c "import openai, dotenv, textual" >/dev/null 2>&1; then
     echo "-> .venv already ready"
 else
     echo "-> setting up .venv with $PY"
@@ -60,9 +60,11 @@ fi
 # 3. the `harness` command ------------------------------------------------
 BIN_DIR="${HARNESS_BIN_DIR:-$HOME/.local/bin}"
 mkdir -p "$BIN_DIR"
-chmod +x "$REPO/harness"
+chmod +x "$REPO/harness" "$REPO/harness-tui"
 ln -sfn "$REPO/harness" "$BIN_DIR/harness"
+ln -sfn "$REPO/harness-tui" "$BIN_DIR/harness-tui"
 echo "-> linked $BIN_DIR/harness -> $REPO/harness"
+echo "-> linked $BIN_DIR/harness-tui -> $REPO/harness-tui"
 
 case ":$PATH:" in
     *":$BIN_DIR:"*) echo "-> $BIN_DIR is already on your PATH" ;;
@@ -83,7 +85,8 @@ cat <<'EOF'
 Ready. Open a NEW shell (or source ~/.bashrc), then:
 
     cd ~/projects/your-app
-    harness
+    harness          # the CLI agent
+    harness-tui      # the Textual terminal UI
 
 The harness' own state lives in ~/.harness — your project stays clean.
 EOF

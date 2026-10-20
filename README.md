@@ -64,8 +64,8 @@ git clone <repo> the-harness && cd the-harness
 ./install.sh
 ```
 
-`install.sh` creates `.venv`, installs `openai` + `python-dotenv`, links
-`harness` into `~/.local/bin` (already on your PATH), and copies
+`install.sh` creates `.venv`, installs `openai` + `python-dotenv` + `textual`,
+links `harness` into `~/.local/bin` (already on your PATH), and copies
 `.env.example` → `.env`. Edit `.env` (API key, `BASE_URL`, `MODEL`).
 
 By hand, if you prefer:
@@ -73,7 +73,7 @@ By hand, if you prefer:
 ```bash
 git clone <repo> the-harness && cd the-harness
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt   # openai, python-dotenv
+.venv/bin/pip install -r requirements.txt   # openai, python-dotenv, textual
 cp .env.example .env                        # then edit it
 ln -s "$(pwd)/harness" ~/.local/bin/harness # ~/.local/bin is already on PATH
 ```
@@ -103,6 +103,56 @@ All settings live in `config.py` and are overridable in `.env` (`CONTEXT_LIMIT`,
 
 > `python`/`python3` are not on PATH in this environment — always use
 > `.venv/bin/python` (the `harness` script does that for you).
+
+## Terminal UI (Textual)
+
+The same agent, with an opencode-style terminal front-end: dark, chat-centred,
+keyboard-first.
+
+```bash
+cd ~/projects/my-app
+.venv/bin/python -m tui            # the folder you are in is the project
+.venv/bin/python -m tui ~/other    # ...or another folder
+.venv/bin/python -m tui -m gpt-4o  # ...with another model
+```
+
+After `./install.sh` there is also a `harness-tui` command, same idea as
+`harness`:
+
+```bash
+cd ~/projects/my-app
+harness-tui
+```
+
+| Key | What it does |
+|---|---|
+| `enter` | send |
+| `shift+enter` | new line in the prompt |
+| `esc` | interrupt the running generation |
+| `ctrl+p` | command palette — switch session or model |
+| `ctrl+c` | quit |
+
+Slash commands: `/new [title]`, `/sessions`, `/model [name]`, `/clear`, `/help`.
+
+What you get:
+
+- **streaming** — the answer appears live in a markdown block; the UI never blocks
+- **tool calls** — one compact block per call: name, arguments, status dot
+  (running / done / failed / denied) and the output; click to expand
+- **diffs** — file edits are snapshotted before and after the call and shown as a
+  coloured diff (green added, red removed)
+- **approvals** — shell commands and file writes ask first: `y` once,
+  `a` always allow, `n` deny (same policy as the CLI)
+- **sessions** — `/sessions` and the palette list the stored sessions; picking one
+  replays its transcript
+
+The harness core is untouched: the UI drives it through `tui/adapter.py`, which
+runs the agent loop in a worker thread and turns its activity into small events.
+The one change to the core is an optional `stop` hook on `llm.chat()` so a
+generation can be interrupted.
+
+Every colour lives in `tui/app.tcss` as a variable — edit those ten lines to
+re-theme the whole app.
 
 ## Your project stays clean
 
@@ -154,6 +204,7 @@ main.py        311   agent loop, REPL, streaming UI
 context.py     189   two-tier compaction
 sessions.py    235   SQLite notebook (the archive)
 subagents.py   153   parallel child agents (delegate)
+tui/                 the Textual front-end (app, adapter, widgets, screens, theme)
 docs/                 one detailed doc per phase (22 Mermaid diagrams)
 test/                 probes (mostly real-server; test_safety.py offline)
 ```
