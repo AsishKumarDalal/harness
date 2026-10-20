@@ -17,7 +17,7 @@ from pathlib import Path
 
 import config
 
-DB_PATH = config.ROOT / ".harness" / "state.db"
+DB_PATH = config.HARNESS_HOME / "state.db"      # lives OUTSIDE the project
 
 _local = threading.local()      # one connection per thread (children run in threads)
 _current = None                 # the parent session currently being served
@@ -227,7 +227,7 @@ def export_session(session_id, path=None):
         return None
     rows = conn.execute("SELECT * FROM messages WHERE session_id=? ORDER BY id",
                         (session_id,)).fetchall()
-    out = Path(path) if path else config.ROOT / ".harness" / f"{session_id}.jsonl"
+    out = Path(path) if path else config.HARNESS_HOME / "exports" / f"{session_id}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write(json.dumps({"session": dict(s)}) + "\n")

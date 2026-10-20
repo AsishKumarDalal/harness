@@ -29,7 +29,7 @@ flowchart TD
     subgraph policy ["Policy layer"]
         P1["tiering: free / ask"]
         P2["modes: ask · auto · plan"]
-        P3["persistent rules<br/>.harness/safety.json"]
+        P3["persistent rules<br/>$HARNESS_HOME/safety.json"]
     end
     H1 --> P1
     H2 --> P1
@@ -90,7 +90,7 @@ ASK_TOOLS  = {"write_file", "edit_file", "run_command", "delegate"}
 Reads are free because the path jail and secret checks already constrain them.
 Unknown tool names are refused (allowlist by default).
 
-## Modes (persisted in `.harness/safety.json`)
+## Modes (persisted in `$HARNESS_HOME/safety.json`)
 
 | Mode | Behavior |
 |---|---|
@@ -116,7 +116,8 @@ Unknown tool names are refused (allowlist by default).
 
 ## Persistent rules
 
-Saving an "always" answer appends to `.harness/safety.json`:
+Saving an "always" answer appends to `$HARNESS_HOME/safety.json`
+(default `~/.harness/safety.json` — never inside the project folder):
 
 ```json
 {
