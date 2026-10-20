@@ -44,8 +44,9 @@ Screen {
 }
 
 .user-message {
-    width: auto;
+    width: 1fr;                /* 1fr, not auto: long lines must wrap, not be cut */
     height: auto;
+    text-overflow: fold;       /* a 4000-char token folds, it is not cut */
     margin: 0 0 1 0;
     padding: 0 1;
     background: $h-surface;
@@ -54,16 +55,18 @@ Screen {
 }
 
 .assistant-message {
-    width: auto;
+    width: 1fr;
     height: auto;
+    text-overflow: fold;
     margin: 0 0 1 0;
     padding: 0 1;              /* aligns with the text of a user message */
     color: $h-text;
 }
 
 .thinking {
-    width: auto;
+    width: 1fr;
     height: auto;
+    text-overflow: fold;
     margin: 0 0 1 0;
     padding: 0 1;
     color: $h-muted;
@@ -71,8 +74,9 @@ Screen {
 }
 
 .note {
-    width: auto;
+    width: 1fr;
     height: auto;
+    text-overflow: fold;
     margin: 0 0 1 0;
     padding: 0 1;
     color: $h-muted;
@@ -115,14 +119,18 @@ ToolBlock > .tool-body {
 }
 
 ToolBlock > .tool-body > .tool-output {
+    width: 1fr;
     height: auto;
+    text-overflow: fold;
     max-height: 20;
     overflow-y: auto;
     color: $h-muted;
 }
 
 DiffView {
+    width: 1fr;
     height: auto;
+    text-overflow: fold;
     max-height: 20;
     overflow-y: auto;
     padding: 0 1;
@@ -140,19 +148,23 @@ ApprovalPrompt {
 }
 
 ApprovalPrompt > .approval-title {
+    width: 1fr;
     height: 1;
     color: $h-warning;
     text-style: bold;
 }
 
 ApprovalPrompt > .approval-body {
+    width: 1fr;
     height: auto;
+    text-overflow: fold;
     max-height: 6;
     overflow-y: auto;
     color: $h-text;
 }
 
 ApprovalPrompt > .approval-hint {
+    width: 1fr;
     height: 1;
     color: $h-muted;
 }
@@ -225,15 +237,19 @@ PromptInput:focus {
 
 /* --- status line + hints --------------------------------------------------- */
 StatusBar {
+    width: 1fr;
     height: 1;
     padding: 0 2;
     background: $h-panel;
     color: $h-muted;
+    text-overflow: ellipsis;
 }
 
 HintBar {
+    width: 1fr;
     height: 1;
     padding: 0 2;
     background: $h-panel;
     color: $h-muted;
+    text-overflow: ellipsis;
 }
