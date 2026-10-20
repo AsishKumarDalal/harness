@@ -10,6 +10,7 @@ The harness itself is untouched: everything here goes through
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,7 @@ from textual.containers import Container, VerticalScroll
 from textual.widgets import Markdown, Static
 
 from .adapter import HarnessAdapter
+from .commands import Command, is_known, parse_command
 from .events import (
     ApprovalNeeded,
     Thinking,
@@ -33,6 +35,7 @@ from .events import (
     TurnEnd,
     TurnError,
 )
+from .screens.palette import PaletteScreen
 from .theme import build_theme
 from .widgets.approval import ApprovalPrompt
 from .widgets.hint_bar import HintBar
@@ -45,7 +48,24 @@ STREAM_FLUSH = 0.04
 
 WELCOME = """[b]harness[/] — opencode-style TUI
 
-Type a request and press enter."""
+Type a request and press enter.  /help for commands, ctrl+p for the palette."""
+
+
+def model_options(current: str) -> list[str]:
+    """Models the palette offers: current + $MODELS (if set) + configured one."""
+    names = [current, config.MODEL]
+    names += [name.strip() for name in os.environ.get("MODELS", "").split(",") if name.strip()]
+    return list(dict.fromkeys(names))
+
+HELP_TEXT = """[b]commands[/]
+  /new [title]   start a fresh session
+  /sessions      list stored sessions
+  /model [name]  show or switch the model
+  /clear         clear the screen (keeps the session)
+  /help          this text
+
+[b]keys[/]
+  enter send · shift+enter newline · esc interrupt · ctrl+p palette · ctrl+c quit"""
 
 
 class HarnessApp(App[None]):
@@ -56,8 +76,10 @@ class HarnessApp(App[None]):
     SUB_TITLE = "opencode-style TUI"
 
     BINDINGS = [
+        Binding("ctrl+p", "palette", "Palette", priority=True),
         Binding("ctrl+c", "quit", "Quit", priority=True),
-        Binding("escape", "interrupt", "Interrupt", priority=True),
+        # no priority: an open modal (the palette) must get Esc first
+        Binding("escape", "interrupt", "Interrupt"),
     ]
 
     def __init__(self, model: str | None = None, project: str | Path | None = None) -> None:
@@ -110,10 +132,10 @@ class HarnessApp(App[None]):
         title = self.adapter.session_id or "—"
         status.session = title[:40]
 
-    def _note(self, text: str) -> None:
-        """Small note in the chat area."""
+    def _note(self, text: str, markup: bool = False) -> None:
+        """Small note in the chat area (markup only for our own text)."""
         chat = self.query_one("#chat", VerticalScroll)
-        chat.mount(Static(text, classes="note", markup=False))
+        chat.mount(Static(text, classes="note", markup=markup))
         chat.scroll_end(animate=False)
 
     # ------------------------------------------------------------------
@@ -125,6 +147,10 @@ class HarnessApp(App[None]):
         event.stop()
         text = event.value
         self.query_one("#prompt", PromptInput).load_text("")
+        command = parse_command(text)
+        if command is not None:
+            self._run_command(command)
+            return
         self._send(text)
 
     def _send(self, text: str) -> None:
@@ -256,3 +282,91 @@ class HarnessApp(App[None]):
         if self._busy:
             self.adapter.cancel()
             self._note("interrupted")
+
+    def action_palette(self) -> None:
+        """Ctrl+P — switch session or model."""
+        rows = self.adapter.list_sessions()
+        models = model_options(self.adapter.model)
+        self.push_screen(PaletteScreen(rows, models), self._on_palette_choice)
+
+    def _on_palette_choice(self, choice: str | None) -> None:
+        """A session or a model was picked in the palette."""
+        if not choice:
+            return
+        kind, _, value = choice.partition(":")
+        if kind == "session":
+            try:
+                history = self.adapter.resume(value)
+            except ValueError as exc:
+                self._note(str(exc))
+                return
+            self._clear_chat()
+            self._replay(history)
+            self._refresh_status()
+        elif kind == "model":
+            self.adapter.model = value
+            self._refresh_status()
+            self._note(f"model: {value}")
+
+    # ------------------------------------------------------------------
+    # slash commands
+    # ------------------------------------------------------------------
+
+    def _run_command(self, command: Command) -> None:
+        """Run a slash command (never reaches the model)."""
+        if not is_known(command):
+            self._note(f"unknown command /{command.name} — try /help")
+            return
+        if command.name == "new":
+            self.adapter.new_session(command.arg or None)
+            self._clear_chat()
+            self._refresh_status()
+            self._note(f"session {self.adapter.session_id}")
+        elif command.name == "sessions":
+            self._show_sessions()
+        elif command.name == "model":
+            if command.arg:
+                self.adapter.model = command.arg
+                self._refresh_status()
+                self._note(f"model: {command.arg}")
+            else:
+                self._note(f"model: {self.adapter.model}")
+        elif command.name == "clear":
+            self._clear_chat()
+        elif command.name == "help":
+            self._note(HELP_TEXT, markup=True)
+
+    def _show_sessions(self) -> None:
+        """List the stored sessions."""
+        rows = self.adapter.list_sessions()
+        if not rows:
+            self._note("no sessions yet")
+            return
+        lines = [f"{r['id']}  {(r['title'] or 'untitled')[:40]}" for r in rows]
+        self._note("\n".join(lines))
+
+    # ------------------------------------------------------------------
+    # chat helpers
+    # ------------------------------------------------------------------
+
+    def _clear_chat(self) -> None:
+        """Empty the chat area (the session itself is untouched)."""
+        chat = self.query_one("#chat", VerticalScroll)
+        chat.remove_children()
+        self._stream_text = ""
+        self._stream_widget = None
+        self._thinking_text = ""
+        self._thinking_widget = None
+        self._tool_blocks.clear()
+
+    def _replay(self, history: list[dict]) -> None:
+        """Re-render a resumed session."""
+        chat = self.query_one("#chat", VerticalScroll)
+        for message in history:
+            role = message.get("role")
+            content = (message.get("content") or "").strip()
+            if role == "user" and content:
+                chat.mount(Static(content, classes="user-message", markup=False))
+            elif role == "assistant" and content:
+                chat.mount(Markdown(content, classes="assistant-message"))
+        chat.scroll_end(animate=False)
