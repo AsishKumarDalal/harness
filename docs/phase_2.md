@@ -131,7 +131,7 @@ The system prompt already says *"If a tool errors, adjust and retry."* Feeding
 message list schema-valid: the tool reply exists, the protocol holds, and the
 next `chat()` call succeeds. This pattern was reused everywhere:
 `edit_file` non-unique errors, secret refusals (phase 3), approval denials
-(planned phase 4), unavailable-tool errors (phase 8).
+(phase 4), unavailable-tool errors (phase 8).
 
 ## Why `MAX_TURNS = 20`
 

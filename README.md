@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>A small, complete agentic coding CLI</strong> — Claude Code shape, Python body.<br>
-  ~1300 lines, stdlib-first, one OpenAI-compatible model endpoint. Built phase by phase with Hermes-agent as the reference design.
+  ~1800 lines, stdlib-first, one OpenAI-compatible model endpoint. Built phase by phase with Hermes-agent as the reference design.
 </p>
 
 <p align="center">
@@ -36,6 +36,9 @@ assistant
   (errors go back to the model as strings, never crashes)
 - **Coding tools**: `list_files`, `read_file`, `write_file`, `edit_file`,
   `search_files`, `run_command` — path-jail, output caps, secret-file refusal
+- **Safety gate** — tiered approvals (reads free, writes/exec ask), persistent
+  allow rules, hardline blocklist, secret/redirect/env guards, and
+  `ask` / `auto` / `plan` modes
 - **Two-tier context management** — prune old tool output at 45%, LLM-summarize
   the middle at 75%, archive (never delete) so nothing is truly lost
 - **Persistent sessions** — SQLite notebook, write-through, crash-resume,
@@ -87,6 +90,11 @@ All settings live in `config.py` and are overridable in `.env` (`CONTEXT_LIMIT`,
 | `/export` | dump the whole session (live + archived) to JSONL |
 | `/prune` | delete finished sessions older than 30 days |
 | `/search <q>` | grep every message ever stored |
+| `/mode [ask\|auto\|plan]` | show/change the safety mode |
+| `/safety` | show mode, allow rules, tool tiers |
+| `/allow <rule>` | add a persistent rule (`bash:<glob>` / `tool:<name>`) |
+| `/unallow <rule>` | remove a persistent rule |
+| `/yolo` | toggle auto mode |
 | `exit` / `quit` | end session and quit |
 
 Anything else is sent to the agent.
@@ -95,15 +103,16 @@ Anything else is sent to the agent.
 
 ```
 config.py       42   all settings, read from .env
+safety.py      474   permission gate: tiers, modes, hardline, guards
 llm.py         151   the ONLY file that talks to the model (streaming, thinking)
 messages.py     51   Conversation — write-through live memory
-tools.py       224   tool registry + runner + schemas
-main.py        269   agent loop, REPL, streaming UI
+tools.py       237   tool registry + runner + schemas
+main.py        307   agent loop, REPL, streaming UI
 context.py     189   two-tier compaction
 sessions.py    235   SQLite notebook (the archive)
 subagents.py   153   parallel child agents (delegate)
 docs/                 one detailed doc per phase (22 Mermaid diagrams)
-test/                 throwaway probes (one behavior each, real server)
+test/                 probes (mostly real-server; test_safety.py offline)
 .harness/             state.db lives here (gitignored)
 ```
 
@@ -112,9 +121,11 @@ test/                 throwaway probes (one behavior each, real server)
 1. You type a message → `agent()` adds it, runs `maybe_compact()` (no-op
    until 45 % full), calls `chat()` with `SCHEMA`, streams the reply through
    the markdown renderer while routing `delta.reasoning` to the thinking block.
-2. If the reply has `tool_calls`, they run in a `ThreadPoolExecutor`, each
-   result capped at 4000/5000 chars, then `convo.add_tool(id, result)` in
-   **call order** (protocol invariant).
+2. If the reply has `tool_calls`, `safety.gate_one()` classifies each call
+   (free / ask / denied) **before** dispatch — prompts run on the main thread.
+   Approved calls run in a `ThreadPoolExecutor`, each result capped at
+   4000/5000 chars, then `convo.add_tool(id, result)` in **call order**
+   (protocol invariant). Denials go back as ordinary tool results.
 3. Loop repeats until the model answers without tools or hits 20 turns.
 4. `Conversation` writes through to SQLite on every add; compaction later
    marks rows `active=0` — **archived, not deleted** — so `/search` and
@@ -127,14 +138,25 @@ See [docs/README.md](docs/README.md) and [docs/phase_1.md](docs/phase_1.md) for
 the full design walkthrough (8 phases, ~1600 lines, diagrams for every
 mechanism).
 
-## Safety status (read this)
+## Safety
 
-This harness is **deliberately not gated**: `write_file`, `edit_file`,
-`run_command`, and `delegate` execute without approval. The only protections
-today are the project path jail (`_safe()`), secret-file refusal, a 60-second
-shell timeout, and output caps — these stop *accidents*, not *misuse*. Approval
-gating is designed (see [docs/phase_4.md](docs/phase_4.md)) but not wired yet.
-Run it on code you own.
+Implemented in `safety.py` (Claude Code + Hermes style):
+
+- **Modes** — `ask` (default), `auto`, `plan` (read-only). Switch with `/mode`
+  or `/yolo`. Rules and mode persist in `.harness/safety.json`.
+- **Hardline blocklist** — `rm -rf /`, fork bombs, raw disk writes, `curl | sh`,
+  shutdown commands are refused always, even in `auto` mode.
+- **Read-only shell** — `ls`, `cat`, `grep`, `git status`, and read-only
+  compounds run without prompts. Compound commands are split, so
+  `git status && rm -rf build` still asks.
+- **Approval prompt** — `write_file`, `edit_file`, `run_command`, `delegate`:
+  `[y] once / [a] always / [n] no` (default deny). "Always" saves rules.
+- **Guards** — path jail (`_safe` uses `relative_to`), secret-file refusal
+  (reads, writes, `cat .env`), redirect/`tee` targets outside the project,
+  credential-free subprocess env (`OPENAI_API_KEY` etc. are stripped).
+- **Honest limit** — these are app-level checks: they stop accidents, not a
+  determined attacker. For real isolation run the agent in a container or
+  under an OS sandbox (bubblewrap, Docker, VM).
 
 ## License
 

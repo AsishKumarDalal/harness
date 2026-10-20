@@ -4,6 +4,7 @@ import subprocess
 import threading
 from pathlib import Path
 
+import safety
 import sessions
 from config import START_DIR
 
@@ -29,8 +30,7 @@ def run_tool_print_allowed():
 def _safe(path: str) -> Path:
     """resolve() the path; reject anything escaping the project folder."""
     p = (START_DIR / path).resolve()
-    if not str(p).startswith(str(START_DIR)):
-        raise ValueError(f"outside project: {path}")
+    p.relative_to(START_DIR.resolve())      # raises if outside the project
     return p
 
 
@@ -46,17 +46,19 @@ def list_files() -> str:
     return text
 
 
-BLOCKED_FILES = {".env"}
-
 def read_file(path: str) -> str:
     p = _safe(path)
-    if p.name in BLOCKED_FILES or p.suffix in (".key", ".pem"):
+    if safety.is_secret_path(p):
         return "error: refusing to read a secret file"
     text = p.read_text(encoding="utf-8")
+    if safety.looks_secret(text):
+        return "error: refusing to read a secret file"
     return text
 
 def write_file(path: str, content: str) -> str:
     p = _safe(path)
+    if safety.is_secret_path(p):
+        return "error: refusing to write a protected/secret file"
     p.parent.mkdir(parents=True, exist_ok=True)
     existed = p.exists()
     p.write_text(content, encoding="utf-8")
@@ -68,6 +70,8 @@ def edit_file(path: str, old_string: str, new_string: str) -> str:
     if not old_string:
         return "error: old_string is empty"
     p = _safe(path)
+    if safety.is_secret_path(p):
+        return "error: refusing to edit a protected/secret file"
     text = p.read_text(encoding="utf-8")
     count = text.count(old_string)
     if count != 1:
@@ -86,6 +90,8 @@ def search_files(needle: str) -> str:
             continue
         if any(part in SKIP_DIRS for part in p.parts):
             continue
+        if safety.is_secret_path(p):
+            continue
         try:
             text = p.read_text(encoding="utf-8")
         except Exception:
@@ -98,9 +104,13 @@ def search_files(needle: str) -> str:
     return "\n".join(hits) if hits else f"no matches for '{needle}'"
 
 def run_command(command: str) -> str:
+    blocked = safety.command_guard(command)      # hardline + secret + redirect guards
+    if blocked:
+        return blocked
     r = subprocess.run(
         command, shell=True, cwd=START_DIR,     # pinned: commands run in the project folder
         capture_output=True, text=True, timeout=60,
+        env=safety.safe_env(),                  # no API keys / tokens in the child
     )
     out = r.stdout.strip()
     if r.stderr.strip():
@@ -213,6 +223,9 @@ def run_tool(call) -> str:
     if allowed is not None and name not in allowed:
         return f"Error: tool '{name}' is not available to this agent"
     args = json.loads(call.function.arguments or "{}")   # arguments = JSON string
+    blocked = safety.blocked_tool_message(name, args)
+    if blocked:
+        return blocked
     try:
         result = REGISTRY[name](**args)
     except Exception as e:

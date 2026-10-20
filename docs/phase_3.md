@@ -115,21 +115,28 @@ out += f"\n[exit={r.returncode}]"
   never a frozen REPL.
 - **Caveat (known, deliberate):** no persistent shell — each call is a fresh
   process, so `cd x && ...` state does not survive across calls, and
-  `run_command("... &")` background processes are not tracked. Phase-4-style
-  hardening and a persistent shell are on the deferred list.
+  `run_command("... &")` background processes are not tracked. Shell hardening
+  now lives in `safety.py` (phase 4); a persistent shell is still deferred.
 
-## Secrets — `read_file` refuses
+## Secrets — file tools refuse
 
 ```python
-BLOCKED_FILES = {".env"}
-if p.name in BLOCKED_FILES or p.suffix in (".key", ".pem"):
+# tools.py — the same check guards read / write / edit / search
+p = _safe(path)
+if safety.is_secret_path(p):
+    return "error: refusing to read a secret file"
+text = p.read_text(encoding="utf-8")
+if safety.looks_secret(text):          # -----BEGIN ... PRIVATE KEY-----
     return "error: refusing to read a secret file"
 ```
 
 A *string* refusal, not an exception — the model sees a rule it must respect
-("don't ask for secrets again"), not a crash. Blocks `.env` by name and
-`.key`/`.pem` by suffix. `read_file` runs **after** `_safe()`, so the jail and
-the secret block are independent lines of defense.
+("don't ask for secrets again"), not a crash. `safety.is_secret_path()` blocks
+`.env*` (except `.env.example`), `.pem`/`.key`/`.p12`, `.ssh/`, `.aws/`,
+`credentials`, etc. `read_file` runs **after** `_safe()`, so the jail and the
+secret block are independent lines of defense. Since phase 4 the same check
+also guards writes, edits, search results, and shell mentions (`cat .env`,
+`--env-file=.env`).
 
 ## Design choices
 

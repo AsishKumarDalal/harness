@@ -319,5 +319,6 @@ turn is a model error the unique-match check largely catches).
   (`action="steer"` injects text into a child's next tool result; `stop` ends
   early with a partial result)
 - orchestrator depth 2 (`MAX_SPAWN_DEPTH=2` switch — code already branches)
-- wiring phase 4's approval gate through `run_tool` (children inherit it for
-  free — one interception point)
+- logging safety decisions into the notebook (phase 4 gates calls and shows
+  approvals in the UI; children already inherit the static policy through
+  `run_tool`)

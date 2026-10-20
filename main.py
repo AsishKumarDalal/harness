@@ -4,6 +4,7 @@ import concurrent.futures
 import re
 
 import config
+import safety
 import sessions
 from context import history_tokens, maybe_compact
 from llm import _last_usage, chat
@@ -95,6 +96,7 @@ def banner():
     print(f"{C}{B}opencode{R}  {D}python harness{R}")
     print(f"{D}model: {config.MODEL}   cwd: {config.START_DIR}{R}")
     print(f"{D}context: {config.CONTEXT_LIMIT} tokens   (prune@{int(config.PRUNE_AT*100)}% compact@{int(config.COMPACT_AT*100)}%){R}")
+    print(f"{D}safety: {safety.mode()} mode   (/safety for rules, /mode to change){R}")
     print(f"{D}{'─' * 60}{R}")
 
 
@@ -201,17 +203,27 @@ def agent(user_msg: str) -> str:
             for tool in calls:                 # show every call BEFORE running
                 args = (tool.function.arguments or "").strip()
                 print(f"  {D}├─ {tool.function.name}({args[:100]}){R}", flush=True)
+
             results: dict = {}
-            if len(calls) == 1:
-                results[0] = run_tool(calls[0])
-                preview = (results[0] or "").replace("\n", " ")[:120]
+            runnable = []                      # calls that passed the safety gate
+            for i, tool in enumerate(calls):
+                ok, message = safety.gate_one(tool)   # prompts happen HERE, main thread
+                if ok:
+                    runnable.append((i, tool))
+                else:
+                    results[i] = message
+                    preview = message.replace("\n", " ")[:120]
+                    print(f"  {D}└─ [denied] {preview}{R}", flush=True)
+
+            if len(runnable) == 1:
+                i, tool = runnable[0]
+                results[i] = run_tool(tool)
+                preview = (results[i] or "").replace("\n", " ")[:120]
                 print(f"  {D}└─ {preview}{R}", flush=True)
-            else:
-                # the agent asked for several tools at once -> run them ALL in
-                # parallel (e.g. 2 delegate calls = 6 children racing together)
-                with concurrent.futures.ThreadPoolExecutor(max_workers=len(calls)) as pool:
-                    futures = {pool.submit(run_tool, t): i
-                               for i, t in enumerate(calls)}
+            elif runnable:
+                # approved tools still run in parallel (e.g. 2 delegate calls)
+                with concurrent.futures.ThreadPoolExecutor(max_workers=len(runnable)) as pool:
+                    futures = {pool.submit(run_tool, t): i for i, t in runnable}
                     for fut in concurrent.futures.as_completed(futures):
                         i = futures[fut]
                         results[i] = fut.result()
@@ -256,6 +268,17 @@ def handle_command(text: str):
             print("(no matches)")
         for h in hits:
             print(f"[{h['session_id']} {h['role']}] {(h['content'] or '')[:160]}")
+    elif name == "mode":
+        print(safety.set_mode(arg) if arg else safety.describe())
+    elif name == "safety":
+        print(safety.describe())
+    elif name == "allow":
+        print(safety.add_rule(arg) if arg
+              else "rules:\n" + ("\n".join(safety.list_rules()) or "(none)"))
+    elif name == "unallow":
+        print(safety.remove_rule(arg))
+    elif name == "yolo":
+        print(safety.set_mode("ask" if safety.mode() == "auto" else "auto"))
     else:
         print("unknown command")
 
@@ -263,7 +286,8 @@ def handle_command(text: str):
 def main():
     banner()
     new_session()
-    print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q> | exit{R}")
+    print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q>{R}")
+    print(f"{D}safety:   /mode [ask|auto|plan] /safety /allow <rule> /unallow <rule> /yolo | exit{R}")
     while True:
         try:
             user = input(f"\n{G}you >{R} ").strip()

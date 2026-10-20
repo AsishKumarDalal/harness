@@ -1,114 +1,175 @@
-# Phase 4 — Safety & Approvals (designed, deliberately deferred)
+# Phase 4 — Safety & Approvals (implemented)
 
-**Status:** 🔶 **design only — nothing wired.** This was a theory phase: work
-out *where* an approval gate belongs and *what* it must decide, then consciously
-choose to finish the capability phases first and bolt safety on when there's a
-working agent to protect.
-
-This doc exists so the eventual wiring is mechanical, not research.
+**Status:** ✅ **wired.** The gate lives in `safety.py` and is called from
+`main.agent()` before tool dispatch; `tools.run_tool()` re-checks the static
+policy so child threads inherit it. The design was drafted early and deliberately
+built after the capability phases, so it wraps the final tool set — including
+`delegate` (phase 8) — instead of being retrofitted.
 
 ---
 
-## Honest risk table — what the agent can do *right now* without asking
+## What is now protected
 
-| Tool | Can damage | Protected today by |
+| Tool | Can damage | Gate |
 |---|---|---|
-| `write_file` | overwrite any file in project | path jail only |
-| `edit_file` | corrupt any file | path jail + unique-match |
-| `run_command` | **anything shell can do** (`rm -rf`, network, git) | cwd pin + timeout + output cap |
-| `delegate` (phase 8) | all of the above × N children | children inherit the same tools |
-| `read_file` | reads secrets | explicit `.env`/`.key`/`.pem` refusal |
+| `read_file` | reads secrets | path jail + secret refusal + private-key sniff |
+| `write_file` | overwrite any file in project | path jail + secret refusal + approval |
+| `edit_file` | corrupt any file | path jail + unique-match + secret refusal + approval |
+| `run_command` | **anything shell can do** | hardline floor + read-only detection + guards + approval |
+| `delegate` | all of the above × N children | parent approval; children inherit static policy |
 
 ```mermaid
 flowchart TD
-    subgraph today ["Wired today (accident prevention)"]
-        A1["path jail _safe()"] --> A2["secret refusal read_file"]
-        A2 --> A3["timeouts + output caps"]
+    subgraph floor ["Always on (no override)"]
+        H1["hardline blocklist<br/>rm -rf / · fork bomb · dd/mkfs · curl|sh"]
+        H2["project path jail<br/>_safe() → relative_to()"]
+        H3["secret + redirect guards<br/>.env · .ssh · > /etc · tee"]
+        H4["credential-free child env<br/>KEY/TOKEN/SECRET stripped"]
     end
-    subgraph deferred ["Deferred (misuse prevention)"]
-        B1["approval gate y/N per risky call"]
-        B2["allowlist for safe commands"]
-        B3["explicit phase-4-ish permissions per session"]
+    subgraph policy ["Policy layer"]
+        P1["tiering: free / ask"]
+        P2["modes: ask · auto · plan"]
+        P3["persistent rules<br/>.harness/safety.json"]
     end
-    A3 -.->|"the gap this phase fills"| B1
+    H1 --> P1
+    H2 --> P1
+    H3 --> P2
+    H4 --> P2
 ```
 
-The honest summary: today's guards stop a **careless** agent; only the deferred
-gate stops a **wrongly-instructed or confused** one.
+The honest summary: the guards stop a **careless** agent; the approval gate
+stops a **wrongly-instructed or confused** one. Neither is a substitute for an
+OS/container sandbox against a hostile agent.
 
-## The planned design
+## Where the gate sits
 
-### Where the gate sits
+Approval prompts must run on the **main thread**. Tool calls in one assistant
+turn are dispatched to a `ThreadPoolExecutor`, so the gate runs *before* the
+pool: each call is classified and (if needed) prompted sequentially, then only
+the approved calls are submitted.
 
 ```mermaid
 sequenceDiagram
-    participant L as loop / child thread
+    participant L as main.agent() — main thread
+    participant G as safety.gate_one()
     participant RT as run_tool (tools.py)
-    participant G as approval gate
-    participant F as real tool fn
-    L->>RT: call
-    RT->>RT: allowed-check (thread-local, phase 8)
-    RT->>G: risky tool? (write/edit/run/delegate)
-    G->>G: APPROVAL mode + allowlist check
-    alt allowlist match or mode=allow
-        G-->>RT: auto-y
-    else mode=ask
-        G-->>L: prompt "execute? [y/N] run_command ..."
-        L-->>G: y
-    else deny / n
-        G-->>RT: "Error: user denied {name} — pick another approach"
-        RT-->>L: error string (phase-2 idiom)
+    participant P as ThreadPoolExecutor
+
+    L->>G: classify each tool_call
+    alt free tool / read-only command / allow rule
+        G-->>L: approved (no prompt)
+    else ask tier
+        G->>G: show action + input()
+        alt y / a
+            G-->>L: approved (a saves a rule)
+        else n / timeout / non-TTY
+            G-->>L: denial string
+        end
     end
-    RT->>F: dispatch
-    F-->>RT: result
+    L->>P: submit approved calls only
+    P->>RT: run_tool(call)
+    RT->>RT: blocked_tool_message(name, args)
+    Note over RT: static check: unknown tool,<br/>plan mode, child policy
+    RT-->>P: result string
+    L->>L: convo.add_tool(id, result) in call order
 ```
 
-The prompt lives **inside `run_tool`** — one interception point that both the
-parent loop and every child thread pass through. The REPL owns `input()` (only
-the main thread may block on stdin); children would resolve through an
-allowlist/auto-deny path so a blocked `input()` in a pool thread can never hang
-a parallel batch.
+Children never call `input()`: a `delegate` call is approved as a batch at the
+parent, and each child's `run_tool` applies the same static policy (unknown
+tools refused; plan mode refuses writes/exec; hardline and guards run inside
+`run_command`). Denials are ordinary **string** tool results — the same
+error-recovery idiom as phase 2 — so the model can adjust instead of crashing.
 
-### Planned config knobs (`config.py` / `.env`)
+## Tool tiers
 
 ```python
-APPROVAL    = "ask"    # ask | allow | deny — default posture
-ALWAYS_ASK  = {"write_file", "edit_file", "run_command", "delegate"}
-ALLOWED_BASH = [       # pre-approved prefixes; never matches rm/curl-pipe
-    "python -m py_compile", "python -c", "pip install", "ls ", "grep ",
-]
+FREE_TOOLS = {"list_files", "read_file", "search_files", "session_search"}
+ASK_TOOLS  = {"write_file", "edit_file", "run_command", "delegate"}
 ```
 
-- **allowlist before ask**: `py_compile` on a file the agent just edited is a
-  *verification* step — forcing a keystroke for it trains users to mash `y`,
-  which defeats the gate. Only genuinely risky calls deserve a prompt.
-- **deny mode**: run the agent read-only — useful for delegating review tasks
-  where children must not write.
-- Denial is always a **string error**, so the model can respond ("the user
-  declined the overwrite; I'll ask first") — same recovery path as phase 2.
+Reads are free because the path jail and secret checks already constrain them.
+Unknown tool names are refused (allowlist by default).
 
-### Why deferred (the reasoning, recorded)
+## Modes (persisted in `.harness/safety.json`)
 
-1. **Order of value:** a gated agent that can't compact/resume/subagent is a
-   demo; an ungated agent that does all three is a *tool you can finish
-   hardening*. Wiring safety last means the gate wraps the **final** tool set —
-   including phase 8's `delegate`, which would otherwise need retrofitting.
-2. **Teaching sequence:** the goal was to build and verify one mechanism per
-   phase. Safety is cross-cutting (touches every tool, every thread) — mixing it
-   into early phases would have blurred their lessons.
-3. **The thread model had to exist first.** Approval in a *parallel* world needs
-   thread-local semantics (which thread blocks? what do children do?). Phase 8
-   created that world; phase 4's design now has a concrete place to sit.
+| Mode | Behavior |
+|---|---|
+| `ask` (default) | free tools run; ask tier prompts `[y] once / [a] always / [n] no` |
+| `auto` | skip prompts; hardline, path, secret, redirect, and env guards still run |
+| `plan` | read-only tools and read-only shell only; writes/exec/delegate refused |
 
-## What wiring it later will touch (checklist)
+`/mode` switches, `/yolo` toggles `ask ↔ auto`, `/safety` inspects.
 
-- [ ] `config.py`: `APPROVAL`, `ALWAYS_ASK`, `ALLOWED_BASH`
-- [ ] `tools.py`: gate call inside `run_tool`, after the allowed-check
-- [ ] `main.py`: thread-safe prompt (queue from worker threads → main thread)
-- [ ] `subagents.py`: children inherit policy (`deny` mode for review delegations)
-- [ ] `/` command: flip posture live (`/approve ask|allow|deny`)
-- [ ] sessions: log every decision (which call, approved/denied) into the notebook
+## Read-only shell detection
+
+`run_command` is free only when **every** compound part is read-only:
+
+- Split on `&&`, `||`, `;`, `|`, `&` — so `git status && rm -rf build` still asks.
+- Strip known wrappers (`timeout`, `nice`, `nohup`, `stdbuf`, `xargs`, `env`)
+  and safe env assignments; unknown assignments make the command ask.
+- Recognise a read-only set (`ls`, `cat`, `grep`, `head`, `tail`, `wc`, `diff`,
+  `find`, `sed` without `-i`, `git status/log/diff/...`).
+- `cd` must stay inside the project; absolute/`..`/`~` read paths outside the
+  project make the command ask.
+- Redirects (`>`, `>>`, `<`) and `tee` are never read-only — they are checked
+  as writes.
+
+## Persistent rules
+
+Saving an "always" answer appends to `.harness/safety.json`:
+
+```json
+{
+  "mode": "ask",
+  "allow": ["bash:npm test*", "tool:write_file"]
+}
+```
+
+- `bash:<glob>` — matched per compound part (`fnmatch`, case-insensitive).
+- `tool:<name>` — whole tool pre-approved.
+- Manual management: `/allow bash:git push*`, `/unallow ...`.
+- A compound command is auto-approved only if **each** part is read-only or
+  matches a rule — an allow rule can't smuggle `rm -rf` behind `npm test`.
+
+## Guards
+
+- **Hardline blocklist** — `rm -rf /` and variants, `--no-preserve-root`, fork
+  bombs, raw disk writes (`dd`/`mkfs`), `curl | sh`, recursive `chmod 777 /`,
+  shutdown/reboot. Refused before any prompt, even in `auto`.
+- **Path jail** — `_safe()` resolves and calls `relative_to(START_DIR)`, which
+  rejects both `..` escapes and sibling-prefix tricks (`project-evil`).
+- **Secrets** — `.env*` (except `.env.example`), `.pem`, `.key`, `credentials`,
+  `.ssh/`, `.aws/`, etc. refused on read, write, edit, search, and in shell
+  mentions (`cat .env`, `--env-file=.env`). File contents containing a private
+  key header are refused too.
+- **Redirect/`tee` targets** — must resolve inside the project and not be a
+  secret; `~`, `$VAR`, and absolute paths are resolved or rejected.
+- **Environment scrub** — subprocesses receive a filtered environment; names
+  containing `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `AUTH`, or `CREDENTIAL` are
+  dropped, so `run_command("printenv")` cannot exfiltrate the model key.
+
+## What is *not* done
+
+- Approval decisions are shown in the UI but **not logged to SQLite**; the
+  notebook currently stores messages only.
+- The policy file is global to the project, not per session.
+- These are app-level checks. `shell=True` in `run_command` means a determined
+  agent can still reach the host (e.g. an interpreter script that opens files).
+  Real isolation requires an OS sandbox — bubblewrap / Docker / VM — around the
+  whole process; see the README's Safety section.
 
 ## Verification
 
-— none, by design. Nothing in this phase shipped; no behavior changed.
+Unit probes (`test/test_safety.py`, no model server needed — 39 assertions):
+
+- hardline: `rm -rf /`, fork bomb, `curl | sh` → refused; `rm -rf build` → not hardline
+- read-only: `ls -la`, `cat file | grep x`, `git status` → free;
+  `git push`, `rm -rf`, `git status && rm -rf build` → ask
+- paths: `cat /etc/passwd`, `cd /tmp`, `find /` → ask; `ls > /dev/null` → free
+- redirects: `> /etc/passwd`, `> ~/evil`, `> $HOME/evil` → blocked
+- secrets: `cat .env`, `python --env-file=.env` → blocked; `.env.example` → allowed
+- modes: plan allows reads/read-only shell, refuses writes; auto allows writes
+  but still refuses hardline commands
+- persistence: `[a]lways` writes `tool:write_file` / `bash:<part>` rules; reload
+  restores mode + rules
+- fail-closed: non-TTY prompt without a rule → denial string
