@@ -29,7 +29,17 @@ def _inline(s: str) -> str:
     s = re.sub(r"\*([^*]+)\*", lambda m: f"\033[3m{m.group(1)}{R}", s)
     return s
 
-
+def read_AGENT():
+    try:
+        with open("AGENT.md", "r", encoding="utf-8") as f:
+            content = f.read()
+            if content.strip():
+                return content
+            else:
+                return None 
+    except:
+        return None 
+        
 def _render_line(line: str, st: dict):
     if line.startswith("```"):
         if not st["in_code"]:
@@ -92,7 +102,11 @@ def new_session(title=None):
     global convo
     sid = sessions.new_session(title, default_system_prompt(),
                                config.MODEL, str(config.START_DIR))
-    convo = Conversation(default_system_prompt(), sid)
+    agent_id=read_AGENT()
+    if(agent_id):
+        print("AGENT.MD loaded")
+        print(agent_id[:10])
+    convo = Conversation(agent_id if agent_id else default_system_prompt(), sid)
     sessions.set_current(sid)
     print(f"{D}new session: {sid}{R}")
 
