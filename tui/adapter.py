@@ -202,6 +202,8 @@ class HarnessAdapter:
                     stop=self._cancel.is_set,
                 )
                 if self._cancel.is_set():
+                    # keep the partial answer so the history stays valid
+                    convo.add_assistant(reply)
                     break
 
                 convo.add_assistant(reply)
