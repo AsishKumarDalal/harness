@@ -29,8 +29,8 @@ import config
 SETTINGS_PATH = config.HARNESS_HOME / "safety.json"   # lives OUTSIDE the project
 MODES = ("ask", "auto", "plan")
 
-FREE_TOOLS = {"list_files", "read_file", "search_files", "session_search"}
-ASK_TOOLS = {"write_file", "edit_file", "run_command", "delegate"}
+FREE_TOOLS = {"list_files", "read_file", "search_files", "session_search", "web_search"}
+ASK_TOOLS = {"write_file", "edit_file", "run_command", "delegate", "web_fetch"}
 ALL_TOOLS = FREE_TOOLS | ASK_TOOLS
 
 # ---------------------------------------------------------------------------
@@ -426,6 +426,8 @@ def _show(name, args):
     elif name == "delegate":
         for t in (args.get("tasks") or [])[:5]:
             print(f"    task: {str(t.get('goal', ''))[:100]}")
+    elif name == "web_fetch":
+        print(f"    url: {str(args.get('url', ''))[:500]}")
 
 
 def gate_one(call):

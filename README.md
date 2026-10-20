@@ -36,6 +36,9 @@ assistant
   (errors go back to the model as strings, never crashes)
 - **Coding tools**: `list_files`, `read_file`, `write_file`, `edit_file`,
   `search_files`, `run_command` — path-jail, output caps, secret-file refusal
+- **Web tools**: `web_search` (DuckDuckGo via `ddgs`, no API key) and
+  `web_fetch` (a page as plain text; a GitHub blob URL becomes the raw file) —
+  local and private addresses are refused
 - **Safety gate** — tiered approvals (reads free, writes/exec ask), persistent
   allow rules, hardline blocklist, secret/redirect/env guards, and
   `ask` / `auto` / `plan` modes
@@ -64,8 +67,8 @@ git clone <repo> the-harness && cd the-harness
 ./install.sh
 ```
 
-`install.sh` creates `.venv`, installs `openai` + `python-dotenv` + `textual`,
-links `harness` into `~/.local/bin` (already on your PATH), and copies
+`install.sh` creates `.venv`, installs `openai` + `python-dotenv` + `textual` +
+`ddgs`, links `harness` into `~/.local/bin` (already on your PATH), and copies
 `.env.example` → `.env`. Edit `.env` (API key, `BASE_URL`, `MODEL`).
 
 By hand, if you prefer:
@@ -73,7 +76,7 @@ By hand, if you prefer:
 ```bash
 git clone <repo> the-harness && cd the-harness
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt   # openai, python-dotenv, textual
+.venv/bin/pip install -r requirements.txt   # openai, python-dotenv, textual, ddgs
 cp .env.example .env                        # then edit it
 ln -s "$(pwd)/harness" ~/.local/bin/harness # ~/.local/bin is already on PATH
 ```
@@ -200,6 +203,7 @@ harness          28   launcher script (put it on your PATH)
 install.sh       89   one-command setup for a fresh machine
 config.py       108   all settings, read from .env
 safety.py      474   permission gate: tiers, modes, hardline, guards
+web.py         190   the internet tools: ddgs search + safe page fetch
 llm.py         151   the ONLY file that talks to the model (streaming, thinking)
 messages.py     51   Conversation — write-through live memory
 tools.py       237   tool registry + runner + schemas
@@ -249,8 +253,12 @@ Implemented in `safety.py` (Claude Code + Hermes style):
 - **Read-only shell** — `ls`, `cat`, `grep`, `git status`, and read-only
   compounds run without prompts. Compound commands are split, so
   `git status && rm -rf build` still asks.
-- **Approval prompt** — `write_file`, `edit_file`, `run_command`, `delegate`:
-  `[y] once / [a] always / [n] no` (default deny). "Always" saves rules.
+- **Approval prompt** — `write_file`, `edit_file`, `run_command`, `delegate`,
+  `web_fetch`: `[y] once / [a] always / [n] no` (default deny). "Always" saves
+  rules. `web_search` is a plain read and never asks.
+- **Web guard** — `web_fetch` only speaks http(s) and refuses addresses that
+  point back at the machine (`localhost`, `10.x`, `192.168.x`, `169.254.169.254`,
+  `::1`), the host is re-checked after DNS, and every redirect is checked too.
 - **Guards** — path jail (`_safe` uses `relative_to`), secret-file refusal
   (reads, writes, `cat .env`), redirect/`tee` targets outside the project,
   credential-free subprocess env (`OPENAI_API_KEY` etc. are stripped).

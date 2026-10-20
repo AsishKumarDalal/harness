@@ -24,11 +24,15 @@ def call_summary(name: str, args: dict) -> str:
         return str(args.get("command", "")).strip()
     if name in ("write_file", "edit_file", "read_file"):
         return str(args.get("path", ""))
+    if name == "web_fetch":
+        return str(args.get("url", ""))
+    if name == "web_search":
+        return str(args.get("query", ""))
     if name == "delegate":
         tasks = args.get("tasks") or []
         goals = [str(t.get("goal", "")).strip() for t in tasks if isinstance(t, dict)]
         return f"{len(tasks)} task(s): " + "; ".join(goals[:2])[:120]
-    for key in ("needle", "query", "path", "command"):
+    for key in ("needle", "query", "path", "command", "url"):
         if key in args:
             return str(args[key])[:120]
     return ""

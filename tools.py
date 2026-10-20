@@ -132,6 +132,18 @@ def session_search(query: str, limit: int = 5) -> str:
     return "\n".join(out)
 
 
+def web_search(query: str, max_results: int = 5) -> str:
+    """Search the web (DuckDuckGo, no API key)."""
+    import web
+    return web.search(query, max_results=max_results)
+
+
+def web_fetch(url: str) -> str:
+    """Fetch a URL and return the page as text (HTML stripped)."""
+    import web
+    return web.fetch(url)
+
+
 def delegate(tasks=None) -> str:
     """Spawn subagents in parallel; they get ONLY goal+context; one summary each."""
     import subagents
@@ -146,6 +158,8 @@ REGISTRY = {
     "search_files":  search_files,
     "run_command":   run_command,
     "session_search": session_search,
+    "web_search":    web_search,
+    "web_fetch":     web_fetch,
     "delegate":      delegate,
 }
  
@@ -191,6 +205,20 @@ SCHEMA = [
           {"query": _str("text to search for"),
            "limit": {"type": "integer", "description": "max results (default 5)"}},
           ["query"]),
+    _tool("web_search",
+          "Search the web (DuckDuckGo, no API key). Returns the top results with "
+          "title, url and a short snippet. Use it to look up documentation, "
+          "libraries, error messages or anything that is not in the project.",
+          {"query": _str("what to search for"),
+           "max_results": {"type": "integer",
+                           "description": "how many results (default 5, max 20)"}},
+          ["query"]),
+    _tool("web_fetch",
+          "Fetch a URL and return the page as plain text (HTML is stripped, "
+          "github.com/.../blob/... URLs are turned into the raw file). Use it to "
+          "read documentation, a GitHub source file, or an API answer.",
+          {"url": _str("the full http(s) URL to fetch")},
+          ["url"]),
     _tool("delegate",
           "Spawn parallel subagents. Each child sees ONLY its goal+context (it knows "
           "nothing about our conversation) and returns a short final summary. Use for "

@@ -363,6 +363,10 @@ def summarize_call(name: str, args: dict) -> str:
         return str(args.get("command", ""))[:300]
     if name in FILE_TOOLS:
         return str(args.get("path", ""))
+    if name == "web_fetch":
+        return str(args.get("url", ""))[:300]
+    if name == "web_search":
+        return str(args.get("query", ""))[:300]
     if name == "delegate":
         tasks = args.get("tasks") or []
         goals = [str(t.get("goal", ""))[:60] for t in tasks if isinstance(t, dict)]
