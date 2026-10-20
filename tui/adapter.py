@@ -28,6 +28,7 @@ import safety
 import sessions
 import tools
 from context import maybe_compact
+from main import read_AGENT
 from messages import Conversation, default_system_prompt
 from tools import SCHEMA, run_tool
 
@@ -77,12 +78,30 @@ class HarnessAdapter:
     # ------------------------------------------------------------------
 
     def new_session(self, title: str | None = None) -> str:
-        """Start a fresh conversation (persisted in the notebook)."""
+        """Start a fresh conversation (persisted in the notebook).
+
+        The project's own AGENT.md is the system prompt when it has one —
+        read from the PROJECT folder, never from the harness' own folder.
+        """
+        system = self.agent_md() or default_system_prompt()
         self.session_id = sessions.new_session(
-            title, default_system_prompt(), self.model, str(config.START_DIR)
+            title, system, self.model, str(config.START_DIR)
         )
-        self.convo = Conversation(default_system_prompt(), self.session_id)
+        self.convo = Conversation(system, self.session_id)
         return self.session_id
+
+    def agent_md(self) -> str:
+        """The project folder's AGENT.md (empty when it has none).
+
+        Read-only, and always from `config.START_DIR` — the folder the agent
+        works on. The harness' own AGENT.md is never used. The CLI's own
+        loader is reused so both front-ends agree on the rule.
+        """
+        return read_AGENT() or ""
+
+    def agent_md_name(self) -> str:
+        """'AGENT.md' when the project has one, else '' (for the status bar)."""
+        return "AGENT.md" if self.agent_md() else ""
 
     def resume(self, session_id: str) -> list[dict]:
         """Load a stored session and return its messages."""

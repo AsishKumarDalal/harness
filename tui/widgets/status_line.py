@@ -44,15 +44,20 @@ class StatusBar(Static):
     session: reactive[str] = reactive("")
     working_dir: reactive[str] = reactive("")
     branch: reactive[str] = reactive("")
+    agent_md: reactive[str] = reactive("")
 
     def render(self):  # type: ignore[override]
         """The model in the accent colour, the rest muted."""
         theme = self.app.current_theme
         accent = theme.accent or theme.primary
         muted = theme.secondary or "dim"
+        loaded = theme.success or "green"
 
         text = Text()
         text.append(self.model or "—", style=accent)
+        if self.agent_md:
+            text.append("  ")
+            text.append(self.agent_md, style=loaded)   # the project's AGENT.md
         text.append("  │  ", style=muted)
         text.append(self.session or "—")
         text.append("  │  ", style=muted)

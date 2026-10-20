@@ -119,6 +119,10 @@ class HarnessApp(App[None]):
         self._refresh_status()
         self.query_one("#prompt", PromptInput).focus()
         self._note(f"session {self.adapter.session_id}")
+        agent_md = self.adapter.agent_md()
+        if agent_md:
+            lines = len(agent_md.splitlines())
+            self._note(f"AGENT.md loaded from {config.START_DIR} ({lines} lines)")
 
     # ------------------------------------------------------------------
     # status
@@ -130,6 +134,7 @@ class HarnessApp(App[None]):
         status.working_dir = str(config.START_DIR)
         status.branch = git_branch(config.START_DIR)
         status.session = self.adapter.session_label()[:40]
+        status.agent_md = self.adapter.agent_md_name()
 
     def _note(self, text: str, markup: bool = False, extra: str = "") -> None:
         """Small note in the chat area (markup only for our own text)."""

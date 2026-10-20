@@ -137,6 +137,9 @@ Slash commands: `/new [title]`, `/sessions`, `/model [name]`, `/clear`, `/help`.
 What you get:
 
 - **streaming** — the answer appears live in a markdown block; the UI never blocks
+- **project instructions** — an `AGENT.md` in the **project** folder (never the
+  harness' own) becomes the system prompt; the top bar shows a green
+  `AGENT.md` badge and the chat says where it was loaded from
 - **tool calls** — one compact block per call: name, arguments, status dot
   (running / done / failed / denied) and the output; click to expand
 - **diffs** — file edits are snapshotted before and after the call and shown as a
