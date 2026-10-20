@@ -6,7 +6,7 @@ from pathlib import Path
 
 import safety
 import sessions
-from config import START_DIR
+import config
 
 SKIP_DIRS = {".venv", "__pycache__", ".git"}
 SEARCH_EXTS = {".py", ".md", ".txt", ".json", ".toml", ".yaml", ".yml",
@@ -29,17 +29,17 @@ def run_tool_print_allowed():
 
 def _safe(path: str) -> Path:
     """resolve() the path; reject anything escaping the project folder."""
-    p = (START_DIR / path).resolve()
-    p.relative_to(START_DIR.resolve())      # raises if outside the project
+    p = (config.START_DIR / path).resolve()
+    p.relative_to(config.START_DIR.resolve())      # raises if outside the project
     return p
 
 
 def list_files() -> str:
     out = []
-    for p in sorted(START_DIR.rglob("*")):
+    for p in sorted(config.START_DIR.rglob("*")):
         if any(part in SKIP_DIRS or part.startswith(".") for part in p.parts):
             continue
-        out.append(str(p.relative_to(START_DIR)) + ("/" if p.is_dir() else ""))
+        out.append(str(p.relative_to(config.START_DIR)) + ("/" if p.is_dir() else ""))
     text = "\n".join(out) or "(empty)"
     if len(text) > 4000:
         text = text[:4000] + "\n...[truncated]"
@@ -85,7 +85,7 @@ def search_files(needle: str) -> str:
     if not needle:
         return "error: needle is empty"
     hits = []
-    for p in sorted(START_DIR.rglob("*")):
+    for p in sorted(config.START_DIR.rglob("*")):
         if p.suffix not in SEARCH_EXTS or not p.is_file():
             continue
         if any(part in SKIP_DIRS for part in p.parts):
@@ -98,7 +98,7 @@ def search_files(needle: str) -> str:
             continue
         for i, line in enumerate(text.splitlines(), 1):
             if needle in line:
-                hits.append(f"{p.relative_to(START_DIR)}:{i}: {line.strip()[:80]}")
+                hits.append(f"{p.relative_to(config.START_DIR)}:{i}: {line.strip()[:80]}")
         if len(hits) >= 50:
             break
     return "\n".join(hits) if hits else f"no matches for '{needle}'"
@@ -108,7 +108,7 @@ def run_command(command: str) -> str:
     if blocked:
         return blocked
     r = subprocess.run(
-        command, shell=True, cwd=START_DIR,     # pinned: commands run in the project folder
+        command, shell=True, cwd=config.START_DIR,   # pinned: commands run in the project folder
         capture_output=True, text=True, timeout=60,
         env=safety.safe_env(),                  # no API keys / tokens in the child
     )

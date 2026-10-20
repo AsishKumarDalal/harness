@@ -12,6 +12,8 @@ import tempfile
 import types
 from pathlib import Path
 
+sys.dont_write_bytecode = True      # keep __pycache__ out of the project folder
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import safety  # noqa: E402
 

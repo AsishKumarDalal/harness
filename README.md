@@ -57,15 +57,40 @@ assistant
 
 ## Quick start
 
+On a **fresh machine** (one command does everything — venv, deps, PATH, `.env`):
+
 ```bash
-git clone <this-repo> the-harness && cd the-harness
-python -m venv .venv
-.venv/bin/pip install -r requirements.txt   # openai, python-dotenv
-cp .env.example .env                        # then edit it
-.venv/bin/python main.py
+git clone <repo> the-harness && cd the-harness
+./install.sh
 ```
 
-`.env`:
+`install.sh` creates `.venv`, installs `openai` + `python-dotenv`, links
+`harness` into `~/.local/bin` (already on your PATH), and copies
+`.env.example` → `.env`. Edit `.env` (API key, `BASE_URL`, `MODEL`).
+
+By hand, if you prefer:
+
+```bash
+git clone <repo> the-harness && cd the-harness
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt   # openai, python-dotenv
+cp .env.example .env                        # then edit it
+ln -s "$(pwd)/harness" ~/.local/bin/harness # ~/.local/bin is already on PATH
+```
+
+Then, in **any** project folder:
+
+```bash
+cd ~/projects/my-app
+harness                     # starts the agent on the folder you are in
+harness ~/projects/other    # ...or on another folder
+harness -m gpt-4o-mini      # ...with another model
+```
+
+`harness` is a thin launcher: it runs the CLI with the venv python, keeps your
+current folder as the project, and keeps every file of its own out of it.
+
+`.env` (in the harness folder):
 
 ```
 OPENAI_API_KEY=ollama                  # server ignores it; SDK requires one
@@ -77,7 +102,22 @@ All settings live in `config.py` and are overridable in `.env` (`CONTEXT_LIMIT`,
 `MAX_SUBAGENTS`, `MAX_SPAWN_DEPTH`, …).
 
 > `python`/`python3` are not on PATH in this environment — always use
-> `.venv/bin/python`.
+> `.venv/bin/python` (the `harness` script does that for you).
+
+## Your project stays clean
+
+The harness keeps **its own files outside the project it works on** — the same
+way opencode keeps its data in `~/.local/share/opencode`:
+
+| What | Where | Override |
+|---|---|---|
+| session notebook (`state.db`), safety rules (`safety.json`), `/export` JSONL | `~/.harness/` | `HARNESS_HOME` env (or `.env`) |
+| the project the agent reads/writes | the folder you run `harness` in, `--project <dir>`, `PROJECT_DIR` env | — |
+
+So `harness` never drops a `.harness/`, a `__pycache__/`, or a database into
+your project — the only files that appear there are the ones the agent was
+asked to create or edit. A v1 `<harness>/.harness` folder is migrated into
+`HARNESS_HOME` automatically on the first run.
 
 ## REPL commands
 
@@ -102,19 +142,24 @@ Anything else is sent to the agent.
 ## Project layout
 
 ```
-config.py       42   all settings, read from .env
+cli.py           60   the `harness` command: arg parsing, project selection
+harness          28   launcher script (put it on your PATH)
+install.sh       89   one-command setup for a fresh machine
+config.py       108   all settings, read from .env
 safety.py      474   permission gate: tiers, modes, hardline, guards
 llm.py         151   the ONLY file that talks to the model (streaming, thinking)
 messages.py     51   Conversation — write-through live memory
 tools.py       237   tool registry + runner + schemas
-main.py        307   agent loop, REPL, streaming UI
+main.py        311   agent loop, REPL, streaming UI
 context.py     189   two-tier compaction
 sessions.py    235   SQLite notebook (the archive)
 subagents.py   153   parallel child agents (delegate)
 docs/                 one detailed doc per phase (22 Mermaid diagrams)
 test/                 probes (mostly real-server; test_safety.py offline)
-.harness/             state.db lives here (gitignored)
 ```
+
+> The harness' own state lives in `~/.harness/` (or `$HARNESS_HOME`), never in
+> the project folder — see "Your project stays clean" above.
 
 ## How it works (30 seconds)
 
@@ -143,7 +188,8 @@ mechanism).
 Implemented in `safety.py` (Claude Code + Hermes style):
 
 - **Modes** — `ask` (default), `auto`, `plan` (read-only). Switch with `/mode`
-  or `/yolo`. Rules and mode persist in `.harness/safety.json`.
+  or `/yolo`. Rules and mode persist in `$HARNESS_HOME/safety.json`
+  (default `~/.harness/safety.json`).
 - **Hardline blocklist** — `rm -rf /`, fork bombs, raw disk writes, `curl | sh`,
   shutdown commands are refused always, even in `auto` mode.
 - **Read-only shell** — `ls`, `cat`, `grep`, `git status`, and read-only

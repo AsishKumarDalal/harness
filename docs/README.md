@@ -81,7 +81,7 @@ flowchart LR
 
     LOOP -->|17.1k / 28.5k tokens| CTX[context.py maybe_compact]
     CTX -->|sync active=0| DB
-    CB[Conversation write-through] -.-> DB[("SQLite notebook<br/>.harness/state.db WAL")]
+    CB[Conversation write-through] -.-> DB[("SQLite notebook<br/>$HARNESS_HOME/state.db WAL")]
 ```
 
 ## Key numbers & safety knobs
@@ -101,7 +101,7 @@ flowchart LR
 | tool result caps | 4000 / 5000 | per-tool / global backstop |
 | `max_tokens` (llm.py) | 4096 | output + reasoning headroom |
 | safety mode | `ask` (default) | `ask` / `auto` / `plan`; switch with `/mode` or `/yolo` |
-| allow rules | `.harness/safety.json` | persistent `bash:<glob>` / `tool:<name>` answers |
+| allow rules | `$HARNESS_HOME/safety.json` | persistent `bash:<glob>` / `tool:<name>` answers |
 | hardline blocklist | always on | no mode or rule can disable it |
 
 ## Working conventions
@@ -110,8 +110,10 @@ flowchart LR
 - **Ad-hoc probes** go in `test/` (`test_model.py`, `test_tool_call.py`, …):
   small scripts that hit the server directly, one behavior each.
   `test/test_safety.py` is the offline exception — pure policy checks, no server.
-- **`.harness/state.db`** is the notebook (gitignored); `/export` writes JSONL
-  next to it. **`.harness/safety.json`** holds the persisted mode + allow rules.
+- **`$HARNESS_HOME/state.db`** is the notebook (default `~/.harness/`, outside any
+  project); `/export` writes JSONL to `$HARNESS_HOME/exports/`.
+  **`$HARNESS_HOME/safety.json`** holds the persisted mode + allow rules.
+  The harness writes **nothing** of its own into the project folder it works on.
 - **`.env` holds a rotating trycloudflare `BASE_URL`** — update it when the
   tunnel dies; `MODEL` is whatever the Ollama-family server serves.
 

@@ -14,7 +14,8 @@ including subagent transcripts (phase 8).
 
 ## The store
 
-Single file: `.harness/state.db` (gitignored), created lazily on first use.
+Single file: `$HARNESS_HOME/state.db` (default `~/.harness/state.db`, outside any
+project folder), created lazily on first use.
 
 ```mermaid
 erDiagram

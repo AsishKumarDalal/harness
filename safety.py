@@ -4,7 +4,7 @@ Design borrowed from Claude Code + Hermes:
   1. hardline blocklist   — never allowed, no prompt, no override
   2. read-only commands   — run free (ls, cat, grep, git status ...)
   3. tiered tools         — reads free, writes/exec/delegate need approval
-  4. persistent rules     — "always" answers saved to .harness/safety.json
+  4. persistent rules     — "always" answers saved to <HARNESS_HOME>/safety.json
   5. modes                — ask (default) | auto | plan
   6. guards               — env scrub, redirect targets, secret paths
 
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import config
 
-SETTINGS_PATH = config.ROOT / ".harness" / "safety.json"
+SETTINGS_PATH = config.HARNESS_HOME / "safety.json"   # lives OUTSIDE the project
 MODES = ("ask", "auto", "plan")
 
 FREE_TOOLS = {"list_files", "read_file", "search_files", "session_search"}

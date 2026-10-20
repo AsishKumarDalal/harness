@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# harness — start the agent on the folder you are standing in.
+#
+#   cd ~/projects/my-app && harness
+#   harness ~/projects/other
+#   harness --project ~/projects/other
+#
+# The harness' own state (notebook, safety rules) lives in $HARNESS_HOME
+# (default ~/.harness) — never inside the project folder.
+set -euo pipefail
+
+SELF="${BASH_SOURCE[0]}"
+if command -v readlink >/dev/null 2>&1; then
+    SELF="$(readlink -f "$SELF")"          # survive being symlinked into ~/bin
+fi
+REPO="$(cd -- "$(dirname -- "$SELF")" && pwd)"
+
+PY="$REPO/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        PY="$(command -v python3)"
+    else
+        echo "harness: no python found (expected $REPO/.venv/bin/python)" >&2
+        exit 1
+    fi
+fi
+
+exec "$PY" "$REPO/cli.py" "$@"      # cwd is kept: the project is where you stand

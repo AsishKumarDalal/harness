@@ -1,4 +1,4 @@
 .venv/
 __pycache__/
 .env
-.harness/
+.harness/          # v1: state lived in the project; it now lives in $HARNESS_HOME

@@ -2,6 +2,9 @@
 
 import concurrent.futures
 import re
+import sys
+
+sys.dont_write_bytecode = True      # keep __pycache__ out of the project folder
 
 import config
 import safety
@@ -31,15 +34,13 @@ def _inline(s: str) -> str:
     return s
 
 def read_AGENT():
+    """Load the project's AGENT.md (if any) — read only, never written."""
+    path = config.START_DIR / "AGENT.md"
     try:
-        with open("AGENT.md", "r", encoding="utf-8") as f:
-            content = f.read()
-            if content.strip():
-                return content
-            else:
-                return None 
-    except:
-        return None 
+        content = path.read_text(encoding="utf-8")
+        return content if content.strip() else None
+    except Exception:
+        return None
         
 def _render_line(line: str, st: dict):
     if line.startswith("```"):
@@ -94,7 +95,8 @@ class MDStream:
 # ---------- app ----------
 def banner():
     print(f"{C}{B}opencode{R}  {D}python harness{R}")
-    print(f"{D}model: {config.MODEL}   cwd: {config.START_DIR}{R}")
+    print(f"{D}model: {config.MODEL}   project: {config.START_DIR}{R}")
+    print(f"{D}state: {config.HARNESS_HOME}  (the harness writes nothing into the project){R}")
     print(f"{D}context: {config.CONTEXT_LIMIT} tokens   (prune@{int(config.PRUNE_AT*100)}% compact@{int(config.COMPACT_AT*100)}%){R}")
     print(f"{D}safety: {safety.mode()} mode   (/safety for rules, /mode to change){R}")
     print(f"{D}{'─' * 60}{R}")
@@ -104,10 +106,9 @@ def new_session(title=None):
     global convo
     sid = sessions.new_session(title, default_system_prompt(),
                                config.MODEL, str(config.START_DIR))
-    agent_id=read_AGENT()
-    if(agent_id):
-        print("AGENT.MD loaded")
-        print(agent_id[:10])
+    agent_id = read_AGENT()
+    if agent_id:
+        print(f"{D}AGENT.md loaded ({len(agent_id.splitlines())} lines){R}")
     convo = Conversation(agent_id if agent_id else default_system_prompt(), sid)
     sessions.set_current(sid)
     print(f"{D}new session: {sid}{R}")
@@ -284,6 +285,9 @@ def handle_command(text: str):
 
 
 def main():
+    if not config.START_DIR.is_dir():
+        print(f"not a folder: {config.START_DIR}")
+        return
     banner()
     new_session()
     print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q>{R}")
