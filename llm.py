@@ -92,8 +92,12 @@ def client() -> OpenAI:
 
 
 def chat(messages: list, tools: list | None = None, model: str | None = None,
-         on_token=None, on_thinking=None) -> object:
-    """Stream the reply. Answer tokens go to on_token, reasoning to on_thinking."""
+         on_token=None, on_thinking=None, stop=None) -> object:
+    """Stream the reply. Answer tokens go to on_token, reasoning to on_thinking.
+
+    stop: optional callable; when it returns True the stream is closed and the
+    partial reply is returned (used by the TUI to interrupt a generation).
+    """
     kwargs = {
         "model": model or MODEL,
         "messages": messages,
@@ -118,6 +122,12 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
     router = _Router(answer, on_thinking)
 
     for chunk in stream:
+        if stop is not None and stop():
+            try:
+                stream.close()
+            except Exception:
+                pass
+            break
         if getattr(chunk, "usage", None):
             usage = chunk.usage
         if not chunk.choices:

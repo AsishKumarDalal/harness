@@ -1,0 +1,122 @@
+/* =============================================================================
+   harness TUI — theme
+   -----------------------------------------------------------------------------
+   EVERY colour in the app lives here as a variable. Swap these values to
+   re-theme the whole UI; no other file mentions a colour.
+
+   The `$h-` prefix is deliberate: a CSS variable that shares a name with a
+   Textual theme variable ($panel, $surface, ...) would be defined twice and
+   break Textual's stylesheet parsing. Textual's own variables are derived
+   from this palette in tui/theme.py, so built-in widgets (Markdown,
+   OptionList, scrollbars) match.
+   ============================================================================= */
+
+$h-bg: #0b0f14;          /* screen background            */
+$h-surface: #111823;     /* raised panels, input, prompt */
+$h-panel: #0d131b;       /* status line, hints           */
+$h-border: #1d2733;      /* hairline borders             */
+$h-text: #c7d2e0;        /* primary text                 */
+$h-muted: #64748b;       /* dim text, tool output        */
+$h-accent: #7aa2f7;      /* the one accent colour        */
+$h-success: #7ee787;     /* done                         */
+$h-error: #ff7b72;       /* failed                       */
+$h-warning: #e3b341;     /* approval prompts             */
+
+/* --- screen ---------------------------------------------------------------- */
+Screen {
+    background: $h-bg;
+    color: $h-text;
+}
+
+/* --- chat history ---------------------------------------------------------- */
+#chat {
+    height: 1fr;
+    padding: 1 2 0 2;
+    background: $h-bg;
+    scrollbar-size-vertical: 1;
+    scrollbar-color: $h-border;
+    scrollbar-background: $h-bg;
+}
+
+.welcome {
+    color: $h-muted;
+    margin-bottom: 1;
+}
+
+.user-message {
+    width: auto;
+    height: auto;
+    margin: 0 0 1 0;
+    padding: 0 1;
+    background: $h-surface;
+    border-left: solid $h-accent;
+    color: $h-text;
+}
+
+.assistant-message {
+    width: auto;
+    height: auto;
+    margin: 0 0 1 0;
+    color: $h-text;
+}
+
+.thinking {
+    width: auto;
+    height: auto;
+    margin: 0 0 1 0;
+    color: $h-muted;
+    text-style: italic;
+}
+
+.note {
+    width: auto;
+    height: auto;
+    margin: 0 0 1 0;
+    color: $h-muted;
+}
+
+/* --- markdown -------------------------------------------------------------- */
+Markdown {
+    color: $h-text;
+    margin: 0;
+}
+
+MarkdownBlock {
+    color: $h-text;
+}
+
+/* --- prompt dock ----------------------------------------------------------- */
+#prompt-dock {
+    height: auto;
+    padding: 0 2;
+    background: $h-bg;
+}
+
+PromptInput {
+    height: auto;
+    min-height: 3;
+    max-height: 12;
+    padding: 0 1;
+    background: $h-surface;
+    color: $h-text;
+    border: solid $h-border;
+}
+
+PromptInput:focus {
+    border: solid $h-accent;
+}
+
+/* --- status line + hints --------------------------------------------------- */
+StatusBar {
+    height: 1;
+    padding: 0 2;
+    background: $h-panel;
+    color: $h-muted;
+}
+
+HintBar {
+    height: 1;
+    padding: 0 2;
+    background: $h-panel;
+    color: $h-muted;
+}
