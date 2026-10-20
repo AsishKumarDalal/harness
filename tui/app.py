@@ -26,6 +26,7 @@ from .events import (
     Thinking,
     Token,
     ToolCall,
+    ToolDiff,
     ToolResult,
     TurnDone,
     TurnEnd,
@@ -35,6 +36,7 @@ from .theme import build_theme
 from .widgets.hint_bar import HintBar
 from .widgets.prompt import PromptInput
 from .widgets.status_line import StatusBar, git_branch
+from .widgets.tool_block import ToolBlock
 
 #: how often the streaming text is repainted (seconds)
 STREAM_FLUSH = 0.04
@@ -67,6 +69,7 @@ class HarnessApp(App[None]):
         self._thinking_text = ""
         self._stream_widget: Markdown | None = None
         self._thinking_widget: Static | None = None
+        self._tool_blocks: dict[str, ToolBlock] = {}
         self._flush_scheduled = False
         self._last_flush = 0.0
         self._busy = False
@@ -148,9 +151,11 @@ class HarnessApp(App[None]):
         elif isinstance(event, Thinking):
             self._on_thinking(event.text)
         elif isinstance(event, ToolCall):
-            self._note(f"tool: {event.name}")
+            self._on_tool_call(event)
         elif isinstance(event, ToolResult):
-            pass
+            self._on_tool_result(event)
+        elif isinstance(event, ToolDiff):
+            self._on_tool_diff(event)
         elif isinstance(event, TurnDone):
             self._on_done(event.content)
         elif isinstance(event, TurnError):
@@ -197,6 +202,30 @@ class HarnessApp(App[None]):
         self._stream_widget = None
         self._thinking_text = ""
         self._thinking_widget = None
+
+    # ------------------------------------------------------------------
+    # tool calls
+    # ------------------------------------------------------------------
+
+    def _on_tool_call(self, event: ToolCall) -> None:
+        """A compact block per tool call."""
+        chat = self.query_one("#chat", VerticalScroll)
+        block = ToolBlock(event.call_id, event.name, event.args)
+        self._tool_blocks[event.call_id] = block
+        chat.mount(block)
+        chat.scroll_end(animate=False)
+
+    def _on_tool_result(self, event: ToolResult) -> None:
+        block = self._tool_blocks.get(event.call_id)
+        if block is None:
+            return
+        block.set_status(event.status)
+        block.set_output(event.output)
+
+    def _on_tool_diff(self, event: ToolDiff) -> None:
+        block = self._tool_blocks.get(event.call_id)
+        if block is not None:
+            block.add_diff(event.diff, event.path)
 
     # ------------------------------------------------------------------
     # actions
