@@ -6,7 +6,8 @@
 
 <p align="center">
   <strong>A small, complete agentic coding CLI</strong> — Claude Code shape, Python body.<br>
-  ~1800 lines, stdlib-first, one OpenAI-compatible model endpoint. Built phase by phase with Hermes-agent as the reference design.
+  ~2600 lines of core, ~2100 more for the Textual TUI, one OpenAI-compatible model
+  endpoint. Built phase by phase with Hermes-agent as the reference design.
 </p>
 
 <p align="center">
@@ -48,6 +49,12 @@ assistant
   `/resume`, `/search` across all sessions incl. subagent transcripts
 - **Skills** — `SKILL.md` folders the model loads on demand, machine-wide or
   per project, the way Claude Code does it
+- **Textual TUI** (`harness-tui`) — an opencode-style front-end over the same
+  core: streaming answers, tool blocks, coloured diffs, inline approvals, a
+  command palette and a `/model` window; the view never jumps while an answer
+  streams in
+- **The model is a machine-wide choice** — `/model` follows you from project to
+  project, and a model can be added from any endpoint (base url + api key)
 - **Streaming OpenCode-style UI** — line-buffered markdown, boxed code fences,
   tool tree (`├─`/`└─`), status line, hidden "thinking..." indicator
 - **Thinking tokens** — `delta.reasoning` routed to a dim/italic block, never
@@ -137,11 +144,16 @@ harness-tui
 | `ctrl+p` | command palette — switch session or model |
 | `ctrl+c` | quit |
 
-Slash commands: `/new [title]`, `/sessions`, `/model [name]`, `/clear`, `/help`.
+Slash commands: `/new [title]`, `/sessions`, `/resume <id\|title>`, `/model`,
+`/skills`, `/clear`, `/help`. `/model` opens a window (see below), everything
+else answers in the chat.
 
 What you get:
 
 - **streaming** — the answer appears live in a markdown block; the UI never blocks
+- **a view that stays put** — the chat is *anchored* to the bottom, so a long
+  answer grows downwards instead of pushing the text around; scroll up to read
+  something and the follow stops until you scroll back
 - **project instructions** — an `AGENT.md` in the **project** folder (never the
   harness' own) becomes the system prompt; the top bar shows a green
   `AGENT.md` badge and the chat says where it was loaded from
@@ -267,21 +279,22 @@ skill with the same name wins over a machine one.
 ```
 cli.py           60   the `harness` command: arg parsing, project selection
 harness          28   launcher script (put it on your PATH)
-install.sh       89   one-command setup for a fresh machine
-config.py       108   all settings, read from .env
-safety.py      474   permission gate: tiers, modes, hardline, guards
-web.py         190   the internet tools: ddgs search + safe page fetch
+harness-tui      28   launcher for the Textual front-end
+install.sh       92   one-command setup for a fresh machine
+config.py       230   all settings, read from .env
+safety.py      477   permission gate: tiers, modes, hardline, guards
+web.py         244   the internet tools: ddgs search + safe page fetch
 skills.py      150   loadable instruction sets (Claude Code style)
-llm.py         151   the ONLY file that talks to the model (streaming, thinking)
-messages.py     51   Conversation — write-through live memory
-tools.py       237   tool registry + runner + schemas
-main.py        311   agent loop, REPL, streaming UI
+llm.py         189   the ONLY file that talks to the model (streaming, thinking)
+messages.py     58   Conversation — write-through live memory
+tools.py       277   tool registry + runner + schemas
+main.py        374   agent loop, REPL, streaming UI
 context.py     189   two-tier compaction
 sessions.py    235   SQLite notebook (the archive)
 subagents.py   153   parallel child agents (delegate)
-tui/                 the Textual front-end (app, adapter, widgets, screens, theme)
-docs/                 one detailed doc per phase (22 Mermaid diagrams)
-test/                 probes (mostly real-server; test_safety.py offline)
+tui/            2.1k the Textual front-end (app, adapter, widgets, screens, theme)
+docs/                 one detailed doc per phase (Mermaid diagrams)
+test/                 offline probes (safety, web, TUI, model, skills)
 ```
 
 > The harness' own state lives in `~/.harness/` (or `$HARNESS_HOME`), never in
@@ -306,8 +319,8 @@ test/                 probes (mostly real-server; test_safety.py offline)
    returns a trimmed summary. Results are one consolidated block per call.
 
 See [docs/README.md](docs/README.md) and [docs/phase_1.md](docs/phase_1.md) for
-the full design walkthrough (8 phases, ~1600 lines, diagrams for every
-mechanism).
+the full design walkthrough (9 phases, a diagram for every mechanism —
+including [phase 9: skills](docs/phase_9.md)).
 
 ## Safety
 

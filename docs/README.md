@@ -14,8 +14,11 @@ main.py        307   agent loop + REPL + streaming UI       phases 1, 2, 7
 context.py     189   two-tier context management            phase 5
 sessions.py    235   SQLite notebook (the archive)          phase 6
 subagents.py   153   parallel child agents                  phase 8
+skills.py      150   loadable instruction sets              phase 9
+web.py         244   the internet tools                     phase 9
+tui/           ~1.9k the Textual front-end                 phase 9
                  ─
-               1839
+               3.9k
 ```
 
 ## Phase documents
@@ -30,6 +33,7 @@ subagents.py   153   parallel child agents                  phase 8
 | [phase_6.md](phase_6.md) | Sessions | SQLite notebook, write-through, resume, search | ✔ crash-resume + lineage |
 | [phase_7.md](phase_7.md) | Streaming UI + thinking | OpenCode-style renderer, `delta.reasoning` routing | ✔ thinking block |
 | [phase_8.md](phase_8.md) | Subagents + parallel calls | `delegate`, 2-level parallelism, thread-local state | ✔ 4 children side by side |
+| [phase_9.md](phase_9.md) | Skills | `SKILL.md` folders, catalogue in the prompt, `skill` tool | ✔ offline (no server) |
 
 ## The nine rules the code never breaks
 
