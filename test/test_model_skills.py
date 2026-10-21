@@ -87,16 +87,50 @@ def test_llm_uses_the_current_model(root: Path) -> None:
     class FakeClient:
         chat = FakeChat()
 
-    llm._client = FakeClient()
     original = config.MODEL
+    original_clients = llm._clients
+    llm._clients = {}
     try:
         config.MODEL = "model-at-call-time"
+        llm._clients[llm.endpoint_for("model-at-call-time")] = FakeClient()
         llm.chat([{"role": "user", "content": "hi"}])
         check("llm.chat uses the current model", seen.get("model") == "model-at-call-time",
               f"-> {seen.get('model')}")
     finally:
-        llm._client = None
+        llm._clients = original_clients
         config.MODEL = original
+
+
+def test_endpoints(root: Path) -> None:
+    """A model added through /model talks to its own endpoint."""
+    import llm
+
+    original = config.SETTINGS_PATH
+    config.SETTINGS_PATH = root / "settings.json"
+    try:
+        key = config.save_provider("api.openai.com", "https://api.openai.com/v1",
+                                   "sk-test", ["gpt-4o", "gpt-4o-mini"])
+        config.set_model_provider("gpt-4o", key)
+        check("the provider is saved", "api.openai.com" in config.providers())
+        check("the model points at it",
+              (config.provider_for_model("gpt-4o") or {}).get("base_url")
+              == "https://api.openai.com/v1")
+        check("an unknown model has no provider",
+              config.provider_for_model("something-else") is None)
+
+        base_url, api_key = llm.endpoint_for("gpt-4o")
+        check("llm uses the saved endpoint", base_url == "https://api.openai.com/v1",
+              f"-> {base_url}")
+        check("llm uses the saved key", api_key == "sk-test")
+
+        default_url, default_key = llm.endpoint_for("some-other-model")
+        check("other models use the default endpoint",
+              default_url == config.BASE_URL and default_key == config.API_KEY)
+
+        check("the provider's models are known",
+              "gpt-4o-mini" in config.provider_models())
+    finally:
+        config.SETTINGS_PATH = original
 
 
 def test_skills(root: Path) -> None:
@@ -216,13 +250,73 @@ async def test_tui_commands(root: Path) -> None:
         config.MODEL = original_model
 
 
+async def test_tui_add_model(root: Path) -> None:
+    """The TUI: add a new model - base url, api key, then pick one."""
+    from tui.app import HarnessApp
+    from tui.screens.add_model import AddModelScreen
+    from tui.screens.model_screen import ModelScreen
+
+    import llm
+
+    original_settings = config.SETTINGS_PATH
+    original_list = llm.list_models
+    config.SETTINGS_PATH = root / "add-settings.json"
+    llm.list_models = lambda base_url, api_key: ["gpt-4o", "gpt-4o-mini", "o3-mini"]
+    try:
+        app = HarnessApp(project=str(root))
+        async with app.run_test(size=(100, 30)) as pilot:
+            await pilot.pause()
+            app.query_one("#prompt").focus()
+
+            await pilot.press(*"/model")
+            await pilot.press("enter")
+            await pilot.pause(0.4)
+            check("/model opens the model window", isinstance(app.screen, ModelScreen))
+            options = app.screen.query_one("#model-options")
+            check("the window offers to add a new model",
+                  "add" in str(options.get_option_at_index(0).id))
+
+            await pilot.press("tab")            # to the list
+            await pilot.pause(0.2)
+            await pilot.press("enter")          # "add a new model"
+            await pilot.pause(0.4)
+            check("the add screen opens", isinstance(app.screen, AddModelScreen))
+
+            await pilot.press(*"https://api.openai.com/v1")
+            await pilot.press("enter")
+            await pilot.pause(0.2)
+            await pilot.press(*"sk-test")
+            await pilot.press("enter")
+            await pilot.pause(0.6)
+            check("the endpoint's models are listed",
+                  app.screen.query_one("#add-options").option_count == 3)
+
+            await pilot.press("enter")          # pick the first one
+            await pilot.pause(0.5)
+            check("the add screen closed", not isinstance(app.screen, AddModelScreen))
+            check("the picked model is used", app.adapter.model == "gpt-4o",
+                  f"-> {app.adapter.model}")
+            provider = config.provider_for_model("gpt-4o") or {}
+            check("the endpoint was saved",
+                  provider.get("base_url") == "https://api.openai.com/v1",
+                  f"-> {provider.get('base_url')}")
+            check("the key was saved", provider.get("api_key") == "sk-test")
+            check("the models were saved", "gpt-4o-mini" in (provider.get("models") or []))
+            await app.action_quit()
+    finally:
+        llm.list_models = original_list
+        config.SETTINGS_PATH = original_settings
+
+
 async def main() -> int:
     root = Path(tempfile.mkdtemp(prefix="harness-model-skills-"))
     try:
         test_model_settings(root)
         test_llm_uses_the_current_model(root)
+        test_endpoints(root)
         test_skills(root)
         await test_tui_commands(root)
+        await test_tui_add_model(root)
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

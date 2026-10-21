@@ -77,7 +77,7 @@ class ModelScreen(ModalScreen[str | None]):
         with Vertical(id="model-window"):
             yield Static("model", id="model-title")
             yield Static("", id="model-current")
-            yield Input(placeholder="type a model name and press enter…",
+            yield Input(placeholder="type a model name…  (tab: add a new one)",
                         id="model-input")
             yield Static("enter set · tab pick from the list · esc close",
                          id="model-hint")
@@ -98,6 +98,8 @@ class ModelScreen(ModalScreen[str | None]):
         options = self.query_one("#model-options", OptionList)
         options.clear_options()
         needle = needle.strip().lower()
+        if not needle:
+            options.add_option(Option("＋ add a new model", id="add"))
         known = [m for m in self._models if not needle or needle in m.lower()]
         if not known:
             return
@@ -105,6 +107,8 @@ class ModelScreen(ModalScreen[str | None]):
         for name in known:
             marker = " (current)" if name == self._current else ""
             options.add_option(Option(f"{name}{marker}", id=f"model:{name}"))
+        if options.option_count:
+            options.action_first()          # so enter picks something
 
     # ------------------------------------------------------------------
     # input
@@ -124,7 +128,9 @@ class ModelScreen(ModalScreen[str | None]):
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
         event.stop()
-        if event.option.id and event.option.id.startswith("model:"):
+        if event.option.id == "add":
+            self.dismiss("__add__")
+        elif event.option.id and event.option.id.startswith("model:"):
             self.dismiss(event.option.id.split(":", 1)[1])
 
     def on_key(self, event) -> None:

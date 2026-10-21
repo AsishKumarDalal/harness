@@ -33,6 +33,7 @@ from .events import (
     TurnEnd,
     TurnError,
 )
+from .screens.add_model import AddModelScreen
 from .screens.model_screen import ModelScreen
 from .screens.palette import PaletteScreen
 from .theme import build_theme
@@ -342,7 +343,22 @@ class HarnessApp(App[None]):
         """A model was picked (or typed) in the /model window."""
         if not value:
             return
+        if value == "__add__":
+            self.push_screen(AddModelScreen(), self._on_new_model)
+            return
         self._set_model(value)
+
+    def _on_new_model(self, result: Any) -> None:
+        """A new endpoint was set up: remember it and use one of its models."""
+        if not result:
+            return
+        model, base_url, api_key, models = result
+        key = config.save_provider(
+            config.provider_key_for(base_url), base_url, api_key, models
+        )
+        config.set_model_provider(model, key)
+        self._set_model(model)
+        self._note(f"endpoint {key} saved for this machine")
 
     def _set_model(self, value: str) -> None:
         """Switch the model and remember it for this machine."""

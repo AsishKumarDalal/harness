@@ -3,9 +3,9 @@
 from openai import OpenAI
 
 import config
-from config import API_KEY, BASE_URL, require_api_key
+from config import require_api_key
 
-_client: OpenAI | None = None
+_clients: dict[tuple, OpenAI] = {}     # one client per (base url, api key)
 _last_usage: dict = {}
 
 _OPEN_TAGS = ("<thinking>", "<think>")
@@ -82,14 +82,41 @@ class _Router:
         self.carry = ""
 
 
-def client() -> OpenAI:
-    global _client
-    if _client is None:
-        kwargs = {"api_key": require_api_key()}
-        if BASE_URL:
-            kwargs["base_url"] = BASE_URL
-        _client = OpenAI(**kwargs)
-    return _client
+def endpoint_for(model: str | None) -> tuple[str | None, str | None]:
+    """The base url and api key to use for a model.
+
+    A model added through /model has its own endpoint (saved in
+    $HARNESS_HOME/settings.json); everything else uses the .env settings.
+    """
+    try:
+        entry = config.provider_for_model(model or config.MODEL)
+    except Exception:
+        entry = None
+    if entry:
+        return (entry.get("base_url") or None), (entry.get("api_key") or None)
+    return config.BASE_URL, (config.API_KEY or None)
+
+
+def client(model: str | None = None) -> OpenAI:
+    """The OpenAI client for a model (one client per endpoint)."""
+    base_url, api_key = endpoint_for(model)
+    key = (base_url, api_key)
+    if key not in _clients:
+        kwargs = {"api_key": api_key or require_api_key()}
+        if base_url:
+            kwargs["base_url"] = base_url
+        _clients[key] = OpenAI(**kwargs)
+    return _clients[key]
+
+
+def list_models(base_url: str, api_key: str) -> list[str]:
+    """The model names an endpoint offers (for the /model window)."""
+    kwargs = {"api_key": api_key or require_api_key()}
+    if base_url:
+        kwargs["base_url"] = base_url
+    probe = OpenAI(**kwargs)
+    names = [getattr(m, "id", "") for m in probe.models.list()]
+    return sorted(name for name in names if name)
 
 
 def chat(messages: list, tools: list | None = None, model: str | None = None,
@@ -109,7 +136,7 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
     if tools:
         kwargs["tools"] = tools
 
-    stream = client().chat.completions.create(**kwargs)
+    stream = client(kwargs["model"]).chat.completions.create(**kwargs)
 
     parts: list[str] = []
     acc: dict = {}            # index -> {id, name, arguments}

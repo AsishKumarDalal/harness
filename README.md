@@ -188,7 +188,7 @@ asked to create or edit. A v1 `<harness>/.harness` folder is migrated into
 | `/export` | dump the whole session (live + archived) to JSONL |
 | `/prune` | delete finished sessions older than 30 days |
 | `/search <q>` | grep every message ever stored |
-| `/model [name]` | show the model, or set it **for this machine** (every project) |
+| `/model [name\|add]` | show the model, set it **for this machine**, or add one from another endpoint |
 | `/skills` | list the skills that can be loaded |
 | `/mode [ask\|auto\|plan]` | show/change the safety mode |
 | `/safety` | show mode, allow rules, tool tiers |
@@ -218,6 +218,23 @@ right now, the models this machine knows (the current one, `$MODELS` and the
 ones used in earlier sessions) and an input where you can type any new model
 name and press enter. `tab` moves to the list, `esc` closes the window without
 changing anything.
+
+### Adding a model from another endpoint
+
+The first entry of that window is **＋ add a new model**. It asks for the
+**base url** and the **api key**, then reads the model list from that
+endpoint and asks which one to use:
+
+```
+base url (e.g. https://api.openai.com/v1)   →  https://api.openai.com/v1
+api key                                     →  sk-...
+which model do you want?                    →  gpt-4o
+```
+
+The endpoint is remembered in `$HARNESS_HOME/settings.json` (mode 600 — it
+holds the key) and the chosen model talks to *that* endpoint from then on, in
+every project. Models without a saved endpoint keep using the `.env`
+`BASE_URL` / `OPENAI_API_KEY`. The CLI has the same flow: `/model add`.
 
 ## Skills (the Claude Code way)
 

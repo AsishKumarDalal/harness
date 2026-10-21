@@ -123,9 +123,11 @@ class HarnessAdapter:
         return sessions.list_sessions(limit)
 
     def known_models(self) -> list[str]:
-        """Models this machine knows: the current one, $MODELS, and past ones."""
+        """Models this machine knows: the current one, $MODELS, saved
+        endpoints and the ones used in earlier sessions."""
         names = [self.model]
         names += [m.strip() for m in os.environ.get("MODELS", "").split(",") if m.strip()]
+        names += config.provider_models()
         for row in self.list_sessions(limit=50):
             model = (row.get("model") or "").strip()
             if model:
