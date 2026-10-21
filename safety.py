@@ -29,7 +29,8 @@ import config
 SETTINGS_PATH = config.HARNESS_HOME / "safety.json"   # lives OUTSIDE the project
 MODES = ("ask", "auto", "plan")
 
-FREE_TOOLS = {"list_files", "read_file", "search_files", "session_search", "web_search"}
+FREE_TOOLS = {"list_files", "read_file", "search_files", "session_search",
+              "web_search", "skill"}
 ASK_TOOLS = {"write_file", "edit_file", "run_command", "delegate", "web_fetch"}
 ALL_TOOLS = FREE_TOOLS | ASK_TOOLS
 

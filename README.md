@@ -46,6 +46,8 @@ assistant
   the middle at 75%, archive (never delete) so nothing is truly lost
 - **Persistent sessions** — SQLite notebook, write-through, crash-resume,
   `/resume`, `/search` across all sessions incl. subagent transcripts
+- **Skills** — `SKILL.md` folders the model loads on demand, machine-wide or
+  per project, the way Claude Code does it
 - **Streaming OpenCode-style UI** — line-buffered markdown, boxed code fences,
   tool tree (`├─`/`└─`), status line, hidden "thinking..." indicator
 - **Thinking tokens** — `delta.reasoning` routed to a dim/italic block, never
@@ -186,6 +188,8 @@ asked to create or edit. A v1 `<harness>/.harness` folder is migrated into
 | `/export` | dump the whole session (live + archived) to JSONL |
 | `/prune` | delete finished sessions older than 30 days |
 | `/search <q>` | grep every message ever stored |
+| `/model [name]` | show the model, or set it **for this machine** (every project) |
+| `/skills` | list the skills that can be loaded |
 | `/mode [ask\|auto\|plan]` | show/change the safety mode |
 | `/safety` | show mode, allow rules, tool tiers |
 | `/allow <rule>` | add a persistent rule (`bash:<glob>` / `tool:<name>`) |
@@ -194,6 +198,46 @@ asked to create or edit. A v1 `<harness>/.harness` folder is migrated into
 | `exit` / `quit` | end session and quit |
 
 Anything else is sent to the agent.
+
+## The model is a machine-wide choice
+
+`/model` (in the CLI and in the TUI) sets the model for **this machine**, not for
+one project:
+
+```
+/model                 -> model: k2-horizon-mova-36b-a4b   (saved, machine-wide)
+/model gpt-4o-mini     -> model set to gpt-4o-mini (saved for this machine)
+```
+
+The choice is kept in `$HARNESS_HOME/settings.json`, so it follows you from
+project to project — set it once, every later run uses it. `harness -m <name>`
+is the per-run override (it does not stick).
+
+## Skills (the Claude Code way)
+
+A skill is a folder with a `SKILL.md` — a named set of instructions the model
+can load when the task fits it:
+
+```
+~/.harness/skills/pdf/SKILL.md            this machine, every project
+<project>/.harness/skills/pdf/SKILL.md    this project only
+```
+
+```markdown
+---
+name: pdf
+description: Extract text and tables from PDF files
+---
+
+# Working with PDFs
+
+Use `pdftotext` for the text, `pdfimages` for the pictures …
+```
+
+The model is told which skills exist (name + description) in its system
+prompt and loads the full instructions on demand with the `skill` tool — so a
+skill costs nothing until it is really needed. `/skills` lists them. A project
+skill with the same name wins over a machine one.
 
 ## Project layout
 
@@ -204,6 +248,7 @@ install.sh       89   one-command setup for a fresh machine
 config.py       108   all settings, read from .env
 safety.py      474   permission gate: tiers, modes, hardline, guards
 web.py         190   the internet tools: ddgs search + safe page fetch
+skills.py      150   loadable instruction sets (Claude Code style)
 llm.py         151   the ONLY file that talks to the model (streaming, thinking)
 messages.py     51   Conversation — write-through live memory
 tools.py       237   tool registry + runner + schemas

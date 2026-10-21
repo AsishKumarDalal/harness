@@ -46,7 +46,14 @@ class Conversation:
 
 
 def default_system_prompt() -> str:
-    return (
+    """The base instructions, plus the skills this project can load."""
+    base = (
         "You are a coding agent. You have tools, use them as needed. "
         "Inspect before acting. If a tool errors, adjust and retry. Be concise."
     )
+    try:
+        import skills
+        extra = skills.prompt_line()
+    except Exception:
+        extra = ""
+    return f"{base}\n\n{extra}" if extra else base

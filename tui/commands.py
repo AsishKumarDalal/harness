@@ -9,7 +9,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 #: The commands the app understands.
-KNOWN_COMMANDS: tuple[str, ...] = ("new", "sessions", "model", "clear", "help")
+KNOWN_COMMANDS: tuple[str, ...] = (
+    "new", "sessions", "model", "skills", "clear", "help",
+)
 
 
 @dataclass(frozen=True)

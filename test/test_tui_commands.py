@@ -61,7 +61,7 @@ check("unknown /nope", is_known(parse_command("/nope")), False)
 check("unknown keeps arg", parse_command("/nope x"), Command("nope", "x"))
 
 # --- the registry itself -----------------------------------------------------
-check("known commands", set(KNOWN_COMMANDS), {"new", "sessions", "model", "clear", "help"})
+check("known commands", set(KNOWN_COMMANDS), {"new", "sessions", "model", "skills", "clear", "help"})
 check("suggestions match", set(suggestions()), set(KNOWN_COMMANDS))
 
 print(f"\n{passed} passed, {failed} failed")

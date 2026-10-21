@@ -144,6 +144,12 @@ def web_fetch(url: str) -> str:
     return web.fetch(url)
 
 
+def skill(name: str) -> str:
+    """Load a skill's instructions (the list is in your system prompt)."""
+    import skills
+    return skills.load_skill(name)
+
+
 def delegate(tasks=None) -> str:
     """Spawn subagents in parallel; they get ONLY goal+context; one summary each."""
     import subagents
@@ -160,6 +166,7 @@ REGISTRY = {
     "session_search": session_search,
     "web_search":    web_search,
     "web_fetch":     web_fetch,
+    "skill":         skill,
     "delegate":      delegate,
 }
  
@@ -219,6 +226,11 @@ SCHEMA = [
           "read documentation, a GitHub source file, or an API answer.",
           {"url": _str("the full http(s) URL to fetch")},
           ["url"]),
+    _tool("skill",
+          "Load the full instructions of a skill. The available skills are "
+          "listed in your system prompt; load one when the task fits it.",
+          {"name": _str("the skill name, e.g. 'pdf'")},
+          ["name"]),
     _tool("delegate",
           "Spawn parallel subagents. Each child sees ONLY its goal+context (it knows "
           "nothing about our conversation) and returns a short final summary. Use for "
