@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import difflib
 import json
+import os
 import threading
 from pathlib import Path
 from typing import Any, AsyncIterator, Iterable
@@ -120,6 +121,20 @@ class HarnessAdapter:
     def list_sessions(self, limit: int = 20) -> list[dict]:
         """Stored sessions, newest first."""
         return sessions.list_sessions(limit)
+
+    def known_models(self) -> list[str]:
+        """Models this machine knows: the current one, $MODELS, and past ones."""
+        names = [self.model]
+        names += [m.strip() for m in os.environ.get("MODELS", "").split(",") if m.strip()]
+        for row in self.list_sessions(limit=50):
+            model = (row.get("model") or "").strip()
+            if model:
+                names.append(model)
+        seen: list[str] = []
+        for name in names:
+            if name and name not in seen:
+                seen.append(name)
+        return seen
 
     def session_label(self) -> str:
         """A friendly name for the current session: its title, else its id."""

@@ -10,7 +10,6 @@ The harness itself is untouched: everything here goes through
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +33,7 @@ from .events import (
     TurnEnd,
     TurnError,
 )
+from .screens.model_screen import ModelScreen
 from .screens.palette import PaletteScreen
 from .theme import build_theme
 from .widgets.approval import ApprovalPrompt
@@ -51,16 +51,10 @@ WELCOME = """[b]harness[/] — opencode-style TUI
 Type a request and press enter.  /help for commands, ctrl+p for the palette."""
 
 
-def model_options(current: str) -> list[str]:
-    """Models the palette offers: current + $MODELS (if set) + configured one."""
-    names = [current, config.MODEL]
-    names += [name.strip() for name in os.environ.get("MODELS", "").split(",") if name.strip()]
-    return list(dict.fromkeys(names))
-
 HELP_TEXT = """[b]commands[/]
   /new title         start a fresh session
   /sessions          list stored sessions
-  /model name        show or switch the model (machine-wide)
+  /model name        the model window (or set a model directly)
   /skills            list the skills that can be loaded
   /clear             clear the screen (keeps the session)
   /help              this text
@@ -324,7 +318,7 @@ class HarnessApp(App[None]):
     def action_palette(self) -> None:
         """Ctrl+P — switch session or model."""
         rows = self.adapter.list_sessions()
-        models = model_options(self.adapter.model)
+        models = self.adapter.known_models()
         self.push_screen(PaletteScreen(rows, models), self._on_palette_choice)
 
     def _on_palette_choice(self, choice: str | None) -> None:
@@ -342,10 +336,20 @@ class HarnessApp(App[None]):
             self._replay(history)
             self._refresh_status()
         elif kind == "model":
-            self.adapter.model = value
-            config.set_model(value)          # machine-wide, like /model
-            self._refresh_status()
-            self._note(f"model: {value}  (saved for this machine)")
+            self._set_model(value)
+
+    def _on_model_choice(self, value: str | None) -> None:
+        """A model was picked (or typed) in the /model window."""
+        if not value:
+            return
+        self._set_model(value)
+
+    def _set_model(self, value: str) -> None:
+        """Switch the model and remember it for this machine."""
+        self.adapter.model = value
+        config.set_model(value)
+        self._refresh_status()
+        self._note(f"model: {value}  (saved for this machine)")
 
     # ------------------------------------------------------------------
     # slash commands
@@ -366,12 +370,12 @@ class HarnessApp(App[None]):
         elif command.name == "model":
             if command.arg:
                 # the model is a machine-wide choice: it follows you everywhere
-                self.adapter.model = command.arg
-                config.set_model(command.arg)
-                self._refresh_status()
-                self._note(f"model: {command.arg}  (saved for this machine)")
+                self._set_model(command.arg)
             else:
-                self._note(f"model: {self.adapter.model}  ({config.model_source()}, machine-wide)")
+                self.push_screen(
+                    ModelScreen(self.adapter.model, self.adapter.known_models()),
+                    self._on_model_choice,
+                )
         elif command.name == "skills":
             self._show_skills()
         elif command.name == "clear":

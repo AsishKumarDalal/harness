@@ -213,6 +213,12 @@ The choice is kept in `$HARNESS_HOME/settings.json`, so it follows you from
 project to project — set it once, every later run uses it. `harness -m <name>`
 is the per-run override (it does not stick).
 
+In the TUI, `/model` opens a small window instead: it shows the model in use
+right now, the models this machine knows (the current one, `$MODELS` and the
+ones used in earlier sessions) and an input where you can type any new model
+name and press enter. `tab` moves to the list, `esc` closes the window without
+changing anything.
+
 ## Skills (the Claude Code way)
 
 A skill is a folder with a `SKILL.md` — a named set of instructions the model

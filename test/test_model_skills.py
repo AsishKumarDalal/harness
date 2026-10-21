@@ -152,8 +152,9 @@ def test_skills(root: Path) -> None:
 
 
 async def test_tui_commands(root: Path) -> None:
-    """The TUI: /model is machine-wide, /skills lists them."""
+    """The TUI: /model opens a window, /skills lists them."""
     from tui.app import HarnessApp
+    from tui.screens.model_screen import ModelScreen
 
     project = root / "tui-project"
     project.mkdir(parents=True, exist_ok=True)
@@ -176,13 +177,39 @@ async def test_tui_commands(root: Path) -> None:
             check("/skills lists them", any("deploy" in note for note in notes),
                   f"-> {notes[-1][:70] if notes else ''}")
 
-            await pilot.press(*"/model gpt-4o-mini")
+            # --- the /model window -----------------------------------------
+            await pilot.press(*"/model")
+            await pilot.press("enter")
+            await pilot.pause(0.4)
+            check("/model opens the model window", isinstance(app.screen, ModelScreen))
+            current = str(app.screen.query_one("#model-current").render())
+            check("the window shows the current model", app.adapter.model in current,
+                  f"-> {current}")
+            check("the window has an input to type a new model",
+                  app.screen.query_one("#model-input") is not None)
+
+            await pilot.press(*"gpt-4o-mini")
+            await pilot.pause(0.2)
+            await pilot.press("enter")
+            await pilot.pause(0.4)
+            check("the window closed", not isinstance(app.screen, ModelScreen))
+            check("the typed model is used", app.adapter.model == "gpt-4o-mini")
+            saved = json.loads((root / "settings.json").read_text(encoding="utf-8"))
+            check("it was saved for the machine", saved.get("model") == "gpt-4o-mini",
+                  f"-> {saved}")
+            check("the status line shows it",
+                  "gpt-4o-mini" in str(app.query_one("#status").render()))
+
+            # --- escape changes nothing ------------------------------------
+            before = app.adapter.model
+            await pilot.press(*"/model")
             await pilot.press("enter")
             await pilot.pause(0.3)
-            check("/model changed the model", app.adapter.model == "gpt-4o-mini")
-            saved = json.loads((root / "settings.json").read_text(encoding="utf-8"))
-            check("/model saved it for the machine", saved.get("model") == "gpt-4o-mini",
-                  f"-> {saved}")
+            await pilot.press("escape")
+            await pilot.pause(0.3)
+            check("escape closes the window", not isinstance(app.screen, ModelScreen))
+            check("escape changes nothing", app.adapter.model == before)
+
             await app.action_quit()
     finally:
         config.SETTINGS_PATH = original_settings
