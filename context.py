@@ -19,7 +19,7 @@ import re
 
 import config
 from config import (CONTEXT_BUDGET, KEEP_HEAD, KEEP_TAIL, PRUNE_AT, COMPACT_AT,
-                    COMPACT_TO, SUMMARY_MODEL, MODEL)
+                    COMPACT_TO, SUMMARY_MODEL)
 from llm import chat
 
 RECENT_TURNS_TO_KEEP = 6                 # newest tool results stay untouched
@@ -126,7 +126,7 @@ def summarize(middle: list) -> str:
     routes = []
     if SUMMARY_MODEL:
         routes.append(SUMMARY_MODEL)
-    routes.append(MODEL)
+    routes.append(config.MODEL)      # read at call time: /model changes it
     for name in routes:
         try:
             reply = chat(ask, model=name)

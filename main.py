@@ -271,6 +271,19 @@ def handle_command(text: str):
             print(f"[{h['session_id']} {h['role']}] {(h['content'] or '')[:160]}")
     elif name == "mode":
         print(safety.set_mode(arg) if arg else safety.describe())
+    elif name == "model":
+        if arg:
+            print(config.set_model(arg))
+        else:
+            print(f"model: {config.MODEL}   ({config.model_source()}, machine-wide)")
+    elif name == "skills":
+        import skills
+        rows = skills.list_skills()
+        if not rows:
+            print(f"(no skills - put them in {skills.global_dir()}/<name>/SKILL.md "
+                  f"or {skills.project_dir()}/<name>/SKILL.md)")
+        for row in rows:
+            print(f"{row['name']:24}  [{row['scope']}]  {row['description']}")
     elif name == "safety":
         print(safety.describe())
     elif name == "allow":
@@ -290,7 +303,7 @@ def main():
         return
     banner()
     new_session()
-    print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q>{R}")
+    print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q> /model [name] /skills{R}")
     print(f"{D}safety:   /mode [ask|auto|plan] /safety /allow <rule> /unallow <rule> /yolo | exit{R}")
     while True:
         try:

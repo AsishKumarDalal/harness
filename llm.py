@@ -2,7 +2,8 @@
 
 from openai import OpenAI
 
-from config import API_KEY, BASE_URL, MODEL, require_api_key
+import config
+from config import API_KEY, BASE_URL, require_api_key
 
 _client: OpenAI | None = None
 _last_usage: dict = {}
@@ -99,7 +100,7 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
     partial reply is returned (used by the TUI to interrupt a generation).
     """
     kwargs = {
-        "model": model or MODEL,
+        "model": model or config.MODEL,   # read at call time: /model changes it
         "messages": messages,
         "max_tokens": 4096,
         "stream": True,

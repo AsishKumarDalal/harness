@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -53,6 +54,62 @@ def set_project_dir(path) -> Path:
     return START_DIR
 
 
+# ---------------------------------------------------------------------------
+# Machine-wide settings (survive every run, live in HARNESS_HOME)
+# ---------------------------------------------------------------------------
+
+SETTINGS_PATH = HARNESS_HOME / "settings.json"
+
+
+def _load_settings() -> dict:
+    try:
+        data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+SETTINGS = _load_settings()
+
+
+def save_settings() -> None:
+    """Write the machine-wide settings back to disk."""
+    try:
+        HARNESS_HOME.mkdir(parents=True, exist_ok=True)
+        SETTINGS_PATH.write_text(json.dumps(SETTINGS, indent=2), encoding="utf-8")
+    except OSError as exc:
+        print(f"could not save {SETTINGS_PATH}: {exc}")
+
+
+def get_model() -> str:
+    """The model to use: the machine-wide choice, else MODEL from .env."""
+    chosen = str(SETTINGS.get("model") or "").strip()
+    return chosen or _get("MODEL", "gpt-4o-mini")
+
+
+def set_model(name: str) -> str:
+    """Set the model for THIS MACHINE (every project, every run).
+
+    The choice is kept in $HARNESS_HOME/settings.json, so it follows you
+    from project to project.
+    """
+    global MODEL
+    name = (name or "").strip()
+    if not name:
+        return "model must not be empty"
+    SETTINGS["model"] = name
+    save_settings()
+    MODEL = name
+    return f"model set to {name} (saved for this machine: {SETTINGS_PATH})"
+
+
+def model_source() -> str:
+    """Where the current model comes from: 'saved', '.env' or 'default'."""
+    if str(SETTINGS.get("model") or "").strip():
+        return "saved"
+    return ".env" if _get("MODEL") else "default"
+
+
 def migrate_legacy_state() -> None:
     """v1 stored state in <harness>/.harness — move it to HARNESS_HOME, once."""
     legacy = LEGACY_STATE_DIR
@@ -79,7 +136,7 @@ SUBAGENT_SUMMARY_CHARS = int(_get("SUBAGENT_SUMMARY_CHARS", "8000"))  # per-chil
 MAX_SPAWN_DEPTH      = int(_get("MAX_SPAWN_DEPTH", "1"))  # 1 = flat: children cannot delegate (Hermes default)
 API_KEY  = _get("OPENAI_API_KEY")
 BASE_URL = _get("BASE_URL") or None   # None = official OpenAI endpoint
-MODEL    = _get("MODEL", "gpt-4o-mini")
+MODEL    = get_model()                 # the machine-wide choice, else MODEL from .env
 START_DIR  = _project_dir()      # the PROJECT the agent works in (not the harness home)
 
 

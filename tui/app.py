@@ -60,7 +60,8 @@ def model_options(current: str) -> list[str]:
 HELP_TEXT = """[b]commands[/]
   /new title         start a fresh session
   /sessions          list stored sessions
-  /model name        show or switch the model
+  /model name        show or switch the model (machine-wide)
+  /skills            list the skills that can be loaded
   /clear             clear the screen (keeps the session)
   /help              this text
 
@@ -342,8 +343,9 @@ class HarnessApp(App[None]):
             self._refresh_status()
         elif kind == "model":
             self.adapter.model = value
+            config.set_model(value)          # machine-wide, like /model
             self._refresh_status()
-            self._note(f"model: {value}")
+            self._note(f"model: {value}  (saved for this machine)")
 
     # ------------------------------------------------------------------
     # slash commands
@@ -363,15 +365,33 @@ class HarnessApp(App[None]):
             self._show_sessions()
         elif command.name == "model":
             if command.arg:
+                # the model is a machine-wide choice: it follows you everywhere
                 self.adapter.model = command.arg
+                config.set_model(command.arg)
                 self._refresh_status()
-                self._note(f"model: {command.arg}")
+                self._note(f"model: {command.arg}  (saved for this machine)")
             else:
-                self._note(f"model: {self.adapter.model}")
+                self._note(f"model: {self.adapter.model}  ({config.model_source()}, machine-wide)")
+        elif command.name == "skills":
+            self._show_skills()
         elif command.name == "clear":
             self._clear_chat()
         elif command.name == "help":
             self._note(HELP_TEXT, markup=True, extra="help")
+
+    def _show_skills(self) -> None:
+        """List the skills that can be loaded."""
+        import skills
+
+        rows = skills.list_skills()
+        if not rows:
+            self._note(
+                f"no skills yet — put them in {skills.global_dir()}/<name>/SKILL.md "
+                f"or {skills.project_dir()}/<name>/SKILL.md"
+            )
+            return
+        lines = [f"{row['name']}  [{row['scope']}]  {row['description']}" for row in rows]
+        self._note("\n".join(lines))
 
     def _show_sessions(self) -> None:
         """List the stored sessions."""
