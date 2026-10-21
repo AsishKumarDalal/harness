@@ -239,6 +239,54 @@ def agent(user_msg: str) -> str:
     return f"(stopped after {MAX_TURNS} tool turns)"
 
 
+def add_model():
+    """Add a model from another endpoint: base url, api key, then pick one."""
+    import llm
+
+    try:
+        base_url = input("  base url (e.g. https://api.openai.com/v1): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return
+    if not base_url:
+        print("cancelled")
+        return
+    if "://" not in base_url:
+        base_url = "https://" + base_url
+    try:
+        api_key = input("  api key: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return
+    try:
+        models = llm.list_models(base_url, api_key)
+    except Exception as exc:
+        print(f"  could not read the model list ({type(exc).__name__}: {exc})")
+        models = []
+    if models:
+        print(f"  the endpoint offers {len(models)} model(s):")
+        for name in models[:20]:
+            print(f"    {name}")
+        try:
+            choice = input("  which one? (name): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if not choice:
+            print("cancelled")
+            return
+    else:
+        try:
+            choice = input("  model name: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if not choice:
+            print("cancelled")
+            return
+    key = config.save_provider(config.provider_key_for(base_url), base_url,
+                               api_key, models)
+    config.set_model_provider(choice, key)
+    print(config.set_model(choice))
+    print(f"  endpoint {key} saved for this machine")
+
+
 def handle_command(text: str):
     parts = text[1:].split(" ", 1)
     name = parts[0]
@@ -271,6 +319,21 @@ def handle_command(text: str):
             print(f"[{h['session_id']} {h['role']}] {(h['content'] or '')[:160]}")
     elif name == "mode":
         print(safety.set_mode(arg) if arg else safety.describe())
+    elif name == "model":
+        if arg == "add":
+            add_model()
+        elif arg:
+            print(config.set_model(arg))
+        else:
+            print(f"model: {config.MODEL}   ({config.model_source()}, machine-wide)")
+    elif name == "skills":
+        import skills
+        rows = skills.list_skills()
+        if not rows:
+            print(f"(no skills - put them in {skills.global_dir()}/<name>/SKILL.md "
+                  f"or {skills.project_dir()}/<name>/SKILL.md)")
+        for row in rows:
+            print(f"{row['name']:24}  [{row['scope']}]  {row['description']}")
     elif name == "safety":
         print(safety.describe())
     elif name == "allow":
@@ -290,7 +353,7 @@ def main():
         return
     banner()
     new_session()
-    print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q>{R}")
+    print(f"{D}commands: /new /sessions /resume <id|title> /title <t> /export /prune /search <q> /model [name|add] /skills{R}")
     print(f"{D}safety:   /mode [ask|auto|plan] /safety /allow <rule> /unallow <rule> /yolo | exit{R}")
     while True:
         try:

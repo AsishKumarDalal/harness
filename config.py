@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -53,6 +54,126 @@ def set_project_dir(path) -> Path:
     return START_DIR
 
 
+# ---------------------------------------------------------------------------
+# Machine-wide settings (survive every run, live in HARNESS_HOME)
+# ---------------------------------------------------------------------------
+
+SETTINGS_PATH = HARNESS_HOME / "settings.json"
+
+
+def _load_settings() -> dict:
+    try:
+        data = json.loads(SETTINGS_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    return data if isinstance(data, dict) else {}
+
+
+SETTINGS = _load_settings()
+
+
+def save_settings() -> None:
+    """Write the machine-wide settings back to disk."""
+    try:
+        HARNESS_HOME.mkdir(parents=True, exist_ok=True)
+        SETTINGS_PATH.write_text(json.dumps(SETTINGS, indent=2), encoding="utf-8")
+        try:                       # the file can hold an api key
+            SETTINGS_PATH.chmod(0o600)
+        except OSError:
+            pass
+    except OSError as exc:
+        print(f"could not save {SETTINGS_PATH}: {exc}")
+
+
+def get_model() -> str:
+    """The model to use: the machine-wide choice, else MODEL from .env."""
+    chosen = str(SETTINGS.get("model") or "").strip()
+    return chosen or _get("MODEL", "gpt-4o-mini")
+
+
+def set_model(name: str) -> str:
+    """Set the model for THIS MACHINE (every project, every run).
+
+    The choice is kept in $HARNESS_HOME/settings.json, so it follows you
+    from project to project.
+    """
+    global MODEL
+    name = (name or "").strip()
+    if not name:
+        return "model must not be empty"
+    SETTINGS["model"] = name
+    save_settings()
+    MODEL = name
+    return f"model set to {name} (saved for this machine: {SETTINGS_PATH})"
+
+
+def model_source() -> str:
+    """Where the current model comes from: 'saved', '.env' or 'default'."""
+    if str(SETTINGS.get("model") or "").strip():
+        return "saved"
+    return ".env" if _get("MODEL") else "default"
+
+
+# ---------------------------------------------------------------------------
+# Endpoints (a base url + an api key), so a model can come from anywhere
+# ---------------------------------------------------------------------------
+
+def providers() -> dict:
+    """The saved endpoints: {key: {base_url, api_key, models}}."""
+    value = SETTINGS.get("providers")
+    return value if isinstance(value, dict) else {}
+
+
+def save_provider(key: str, base_url: str, api_key: str,
+                  models: list[str] | None = None) -> str:
+    """Remember an endpoint and the models it serves."""
+    key = (key or "").strip() or "default"
+    SETTINGS.setdefault("providers", {})[key] = {
+        "base_url": (base_url or "").strip(),
+        "api_key": (api_key or "").strip(),
+        "models": list(models or []),
+    }
+    save_settings()
+    return key
+
+
+def provider_key_for(base_url: str) -> str:
+    """A readable key for an endpoint (its host name)."""
+    from urllib.parse import urlparse
+
+    host = (urlparse(base_url or "").hostname or "").lower()
+    return host or "default"
+
+
+def set_model_provider(model: str, key: str) -> None:
+    """Remember which endpoint serves a model."""
+    SETTINGS.setdefault("model_provider", {})[model] = key
+    save_settings()
+
+
+def provider_for_model(model: str) -> dict | None:
+    """The saved endpoint that serves a model (None when there is none)."""
+    model = (model or "").strip()
+    mapping = SETTINGS.get("model_provider")
+    if not isinstance(mapping, dict) or not model:
+        return None
+    key = mapping.get(model)
+    if not key:
+        return None
+    entry = providers().get(key)
+    return entry if isinstance(entry, dict) else None
+
+
+def provider_models() -> list[str]:
+    """Every model the saved endpoints offer."""
+    names: list[str] = []
+    for entry in providers().values():
+        for name in entry.get("models") or []:
+            if name and name not in names:
+                names.append(name)
+    return names
+
+
 def migrate_legacy_state() -> None:
     """v1 stored state in <harness>/.harness — move it to HARNESS_HOME, once."""
     legacy = LEGACY_STATE_DIR
@@ -79,7 +200,7 @@ SUBAGENT_SUMMARY_CHARS = int(_get("SUBAGENT_SUMMARY_CHARS", "8000"))  # per-chil
 MAX_SPAWN_DEPTH      = int(_get("MAX_SPAWN_DEPTH", "1"))  # 1 = flat: children cannot delegate (Hermes default)
 API_KEY  = _get("OPENAI_API_KEY")
 BASE_URL = _get("BASE_URL") or None   # None = official OpenAI endpoint
-MODEL    = _get("MODEL", "gpt-4o-mini")
+MODEL    = get_model()                 # the machine-wide choice, else MODEL from .env
 START_DIR  = _project_dir()      # the PROJECT the agent works in (not the harness home)
 
 

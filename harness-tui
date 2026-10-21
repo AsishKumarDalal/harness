@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# harness-tui — the Textual terminal UI for the harness.
+#
+#   cd ~/projects/my-app && harness-tui
+#   harness-tui ~/projects/other
+#   harness-tui -m gpt-4o-mini
+#
+# Same rules as `harness`: the project is the folder you stand in, and the
+# harness' own state lives in $HARNESS_HOME (default ~/.harness).
+set -euo pipefail
+
+SELF="${BASH_SOURCE[0]}"
+if command -v readlink >/dev/null 2>&1; then
+    SELF="$(readlink -f "$SELF")"          # survive being symlinked into ~/bin
+fi
+REPO="$(cd -- "$(dirname -- "$SELF")" && pwd)"
+
+PY="$REPO/.venv/bin/python"
+if [ ! -x "$PY" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        PY="$(command -v python3)"
+    else
+        echo "harness-tui: no python found (expected $REPO/.venv/bin/python)" >&2
+        exit 1
+    fi
+fi
+
+exec "$PY" "$REPO/tui/__main__.py" "$@"   # cwd is kept: the project is where you stand

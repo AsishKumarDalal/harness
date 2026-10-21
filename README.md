@@ -6,7 +6,8 @@
 
 <p align="center">
   <strong>A small, complete agentic coding CLI</strong> — Claude Code shape, Python body.<br>
-  ~1800 lines, stdlib-first, one OpenAI-compatible model endpoint. Built phase by phase with Hermes-agent as the reference design.
+  ~2600 lines of core, ~2100 more for the Textual TUI, one OpenAI-compatible model
+  endpoint. Built phase by phase with Hermes-agent as the reference design.
 </p>
 
 <p align="center">
@@ -36,6 +37,9 @@ assistant
   (errors go back to the model as strings, never crashes)
 - **Coding tools**: `list_files`, `read_file`, `write_file`, `edit_file`,
   `search_files`, `run_command` — path-jail, output caps, secret-file refusal
+- **Web tools**: `web_search` (DuckDuckGo via `ddgs`, no API key) and
+  `web_fetch` (a page as plain text; a GitHub blob URL becomes the raw file) —
+  local and private addresses are refused
 - **Safety gate** — tiered approvals (reads free, writes/exec ask), persistent
   allow rules, hardline blocklist, secret/redirect/env guards, and
   `ask` / `auto` / `plan` modes
@@ -43,6 +47,14 @@ assistant
   the middle at 75%, archive (never delete) so nothing is truly lost
 - **Persistent sessions** — SQLite notebook, write-through, crash-resume,
   `/resume`, `/search` across all sessions incl. subagent transcripts
+- **Skills** — `SKILL.md` folders the model loads on demand, machine-wide or
+  per project, the way Claude Code does it
+- **Textual TUI** (`harness-tui`) — an opencode-style front-end over the same
+  core: streaming answers, tool blocks, coloured diffs, inline approvals, a
+  command palette and a `/model` window; the view never jumps while an answer
+  streams in
+- **The model is a machine-wide choice** — `/model` follows you from project to
+  project, and a model can be added from any endpoint (base url + api key)
 - **Streaming OpenCode-style UI** — line-buffered markdown, boxed code fences,
   tool tree (`├─`/`└─`), status line, hidden "thinking..." indicator
 - **Thinking tokens** — `delta.reasoning` routed to a dim/italic block, never
@@ -64,8 +76,8 @@ git clone <repo> the-harness && cd the-harness
 ./install.sh
 ```
 
-`install.sh` creates `.venv`, installs `openai` + `python-dotenv`, links
-`harness` into `~/.local/bin` (already on your PATH), and copies
+`install.sh` creates `.venv`, installs `openai` + `python-dotenv` + `textual` +
+`ddgs`, links `harness` into `~/.local/bin` (already on your PATH), and copies
 `.env.example` → `.env`. Edit `.env` (API key, `BASE_URL`, `MODEL`).
 
 By hand, if you prefer:
@@ -73,7 +85,7 @@ By hand, if you prefer:
 ```bash
 git clone <repo> the-harness && cd the-harness
 python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt   # openai, python-dotenv
+.venv/bin/pip install -r requirements.txt   # openai, python-dotenv, textual, ddgs
 cp .env.example .env                        # then edit it
 ln -s "$(pwd)/harness" ~/.local/bin/harness # ~/.local/bin is already on PATH
 ```
@@ -104,6 +116,64 @@ All settings live in `config.py` and are overridable in `.env` (`CONTEXT_LIMIT`,
 > `python`/`python3` are not on PATH in this environment — always use
 > `.venv/bin/python` (the `harness` script does that for you).
 
+## Terminal UI (Textual)
+
+The same agent, with an opencode-style terminal front-end: dark, chat-centred,
+keyboard-first.
+
+```bash
+cd ~/projects/my-app
+.venv/bin/python -m tui            # the folder you are in is the project
+.venv/bin/python -m tui ~/other    # ...or another folder
+.venv/bin/python -m tui -m gpt-4o  # ...with another model
+```
+
+After `./install.sh` there is also a `harness-tui` command, same idea as
+`harness`:
+
+```bash
+cd ~/projects/my-app
+harness-tui
+```
+
+| Key | What it does |
+|---|---|
+| `enter` | send |
+| `shift+enter` | new line in the prompt |
+| `esc` | interrupt the running generation |
+| `ctrl+p` | command palette — switch session or model |
+| `ctrl+c` | quit |
+
+Slash commands: `/new [title]`, `/sessions`, `/resume <id\|title>`, `/model`,
+`/skills`, `/clear`, `/help`. `/model` opens a window (see below), everything
+else answers in the chat.
+
+What you get:
+
+- **streaming** — the answer appears live in a markdown block; the UI never blocks
+- **a view that stays put** — the chat is *anchored* to the bottom, so a long
+  answer grows downwards instead of pushing the text around; scroll up to read
+  something and the follow stops until you scroll back
+- **project instructions** — an `AGENT.md` in the **project** folder (never the
+  harness' own) becomes the system prompt; the top bar shows a green
+  `AGENT.md` badge and the chat says where it was loaded from
+- **tool calls** — one compact block per call: name, arguments, status dot
+  (running / done / failed / denied) and the output; click to expand
+- **diffs** — file edits are snapshotted before and after the call and shown as a
+  coloured diff (green added, red removed)
+- **approvals** — shell commands and file writes ask first: `y` once,
+  `a` always allow, `n` deny (same policy as the CLI)
+- **sessions** — `/sessions` and the palette list the stored sessions; picking one
+  replays its transcript
+
+The harness core is untouched: the UI drives it through `tui/adapter.py`, which
+runs the agent loop in a worker thread and turns its activity into small events.
+The one change to the core is an optional `stop` hook on `llm.chat()` so a
+generation can be interrupted.
+
+Every colour lives in `tui/app.tcss` as a variable — edit those ten lines to
+re-theme the whole app.
+
 ## Your project stays clean
 
 The harness keeps **its own files outside the project it works on** — the same
@@ -130,6 +200,8 @@ asked to create or edit. A v1 `<harness>/.harness` folder is migrated into
 | `/export` | dump the whole session (live + archived) to JSONL |
 | `/prune` | delete finished sessions older than 30 days |
 | `/search <q>` | grep every message ever stored |
+| `/model [name\|add]` | show the model, set it **for this machine**, or add one from another endpoint |
+| `/skills` | list the skills that can be loaded |
 | `/mode [ask\|auto\|plan]` | show/change the safety mode |
 | `/safety` | show mode, allow rules, tool tiers |
 | `/allow <rule>` | add a persistent rule (`bash:<glob>` / `tool:<name>`) |
@@ -139,23 +211,90 @@ asked to create or edit. A v1 `<harness>/.harness` folder is migrated into
 
 Anything else is sent to the agent.
 
+## The model is a machine-wide choice
+
+`/model` (in the CLI and in the TUI) sets the model for **this machine**, not for
+one project:
+
+```
+/model                 -> model: k2-horizon-mova-36b-a4b   (saved, machine-wide)
+/model gpt-4o-mini     -> model set to gpt-4o-mini (saved for this machine)
+```
+
+The choice is kept in `$HARNESS_HOME/settings.json`, so it follows you from
+project to project — set it once, every later run uses it. `harness -m <name>`
+is the per-run override (it does not stick).
+
+In the TUI, `/model` opens a small window instead: it shows the model in use
+right now, the models this machine knows (the current one, `$MODELS` and the
+ones used in earlier sessions) and an input where you can type any new model
+name and press enter. `tab` moves to the list, `esc` closes the window without
+changing anything.
+
+### Adding a model from another endpoint
+
+The first entry of that window is **＋ add a new model**. It asks for the
+**base url** and the **api key**, then reads the model list from that
+endpoint and asks which one to use:
+
+```
+base url (e.g. https://api.openai.com/v1)   →  https://api.openai.com/v1
+api key                                     →  sk-...
+which model do you want?                    →  gpt-4o
+```
+
+The endpoint is remembered in `$HARNESS_HOME/settings.json` (mode 600 — it
+holds the key) and the chosen model talks to *that* endpoint from then on, in
+every project. Models without a saved endpoint keep using the `.env`
+`BASE_URL` / `OPENAI_API_KEY`. The CLI has the same flow: `/model add`.
+
+## Skills (the Claude Code way)
+
+A skill is a folder with a `SKILL.md` — a named set of instructions the model
+can load when the task fits it:
+
+```
+~/.harness/skills/pdf/SKILL.md            this machine, every project
+<project>/.harness/skills/pdf/SKILL.md    this project only
+```
+
+```markdown
+---
+name: pdf
+description: Extract text and tables from PDF files
+---
+
+# Working with PDFs
+
+Use `pdftotext` for the text, `pdfimages` for the pictures …
+```
+
+The model is told which skills exist (name + description) in its system
+prompt and loads the full instructions on demand with the `skill` tool — so a
+skill costs nothing until it is really needed. `/skills` lists them. A project
+skill with the same name wins over a machine one.
+
 ## Project layout
 
 ```
 cli.py           60   the `harness` command: arg parsing, project selection
 harness          28   launcher script (put it on your PATH)
-install.sh       89   one-command setup for a fresh machine
-config.py       108   all settings, read from .env
-safety.py      474   permission gate: tiers, modes, hardline, guards
-llm.py         151   the ONLY file that talks to the model (streaming, thinking)
-messages.py     51   Conversation — write-through live memory
-tools.py       237   tool registry + runner + schemas
-main.py        311   agent loop, REPL, streaming UI
+harness-tui      28   launcher for the Textual front-end
+install.sh       92   one-command setup for a fresh machine
+config.py       230   all settings, read from .env
+safety.py      477   permission gate: tiers, modes, hardline, guards
+web.py         244   the internet tools: ddgs search + safe page fetch
+skills.py      150   loadable instruction sets (Claude Code style)
+llm.py         189   the ONLY file that talks to the model (streaming, thinking)
+messages.py     58   Conversation — write-through live memory
+tools.py       277   tool registry + runner + schemas
+main.py        374   agent loop, REPL, streaming UI
 context.py     189   two-tier compaction
 sessions.py    235   SQLite notebook (the archive)
 subagents.py   153   parallel child agents (delegate)
-docs/                 one detailed doc per phase (22 Mermaid diagrams)
-test/                 probes (mostly real-server; test_safety.py offline)
+tui/            2.1k the Textual front-end (app, adapter, widgets, screens, theme)
+docs/                 one detailed doc per phase (Mermaid diagrams)
+test/                 offline probes (safety, web, TUI, model, skills)
 ```
 
 > The harness' own state lives in `~/.harness/` (or `$HARNESS_HOME`), never in
@@ -180,8 +319,8 @@ test/                 probes (mostly real-server; test_safety.py offline)
    returns a trimmed summary. Results are one consolidated block per call.
 
 See [docs/README.md](docs/README.md) and [docs/phase_1.md](docs/phase_1.md) for
-the full design walkthrough (8 phases, ~1600 lines, diagrams for every
-mechanism).
+the full design walkthrough (9 phases, a diagram for every mechanism —
+including [phase 9: skills](docs/phase_9.md)).
 
 ## Safety
 
@@ -195,8 +334,12 @@ Implemented in `safety.py` (Claude Code + Hermes style):
 - **Read-only shell** — `ls`, `cat`, `grep`, `git status`, and read-only
   compounds run without prompts. Compound commands are split, so
   `git status && rm -rf build` still asks.
-- **Approval prompt** — `write_file`, `edit_file`, `run_command`, `delegate`:
-  `[y] once / [a] always / [n] no` (default deny). "Always" saves rules.
+- **Approval prompt** — `write_file`, `edit_file`, `run_command`, `delegate`,
+  `web_fetch`: `[y] once / [a] always / [n] no` (default deny). "Always" saves
+  rules. `web_search` is a plain read and never asks.
+- **Web guard** — `web_fetch` only speaks http(s) and refuses addresses that
+  point back at the machine (`localhost`, `10.x`, `192.168.x`, `169.254.169.254`,
+  `::1`), the host is re-checked after DNS, and every redirect is checked too.
 - **Guards** — path jail (`_safe` uses `relative_to`), secret-file refusal
   (reads, writes, `cat .env`), redirect/`tee` targets outside the project,
   credential-free subprocess env (`OPENAI_API_KEY` etc. are stripped).
