@@ -89,10 +89,10 @@ class HarnessApp(App[None]):
         self._thinking_text = ""
         self._stream_widget: Markdown | None = None
         self._thinking_widget: Static | None = None
+        self._appended = 0             # how much of the answer is in the widget
         self._tool_blocks: dict[str, ToolBlock] = {}
         self._flush_scheduled = False
         self._busy = False
-        self._follow = True          # follow the stream while at the bottom
 
     # ------------------------------------------------------------------
     # layout
@@ -136,7 +136,6 @@ class HarnessApp(App[None]):
         """Small note in the chat area (markup only for our own text)."""
         chat = self.query_one("#chat", ChatArea)
         chat.mount(Static(text, classes=f"note {extra}".strip(), markup=markup))
-        self._follow_down()
 
     # ------------------------------------------------------------------
     # scrolling
@@ -145,22 +144,20 @@ class HarnessApp(App[None]):
     def on_chat_area_follow_changed(self, event: ChatArea.FollowChanged) -> None:
         """The user scrolled: follow the stream only while at the bottom."""
         event.stop()
-        self._follow = event.follow
+        if event.follow:
+            # back at the bottom - pin the view again
+            self._follow_down()
 
     def _follow_down(self) -> None:
-        """Jump to the last line - but only while the view is following."""
-        if not self._follow:
-            return
-        chat = self.query_one("#chat", ChatArea)
-        chat.scroll_end(animate=False)
-        # the content may still grow after this frame, so go there again
-        self.call_after_refresh(self._follow_down_once)
+        """Pin the view to the last line.
 
-    def _follow_down_once(self) -> None:
-        """Second jump, after the new content has been laid out."""
-        if not self._follow:
-            return
-        self.query_one("#chat", ChatArea).scroll_end(animate=False)
+        The chat area is *anchored*: the compositor keeps the bottom line in
+        place while the content grows, in the same frame it is laid out. A
+        manual scroll_end() is deferred to the next refresh, so the new text
+        would be painted before the view caught up - that is the jumping.
+        """
+        chat = self.query_one("#chat", ChatArea)
+        chat.follow()
 
     # ------------------------------------------------------------------
     # sending
@@ -182,9 +179,8 @@ class HarnessApp(App[None]):
             self._note("busy — esc to interrupt")
             return
         chat = self.query_one("#chat", ChatArea)
-        self._follow = True             # a new turn starts at the bottom again
+        chat.follow()              # a new turn starts at the bottom again
         chat.mount(Static(text, classes="user-message", markup=False))
-        self._follow_down()
         self._busy = True
         self._run_turn(text)
 
@@ -203,7 +199,7 @@ class HarnessApp(App[None]):
         if isinstance(event, Token):
             self._on_token(event.text)
         elif isinstance(event, Thinking):
-            await self._on_thinking(event.text)
+            self._on_thinking(event.text)
         elif isinstance(event, ToolCall):
             await self._on_tool_call(event)
         elif isinstance(event, ToolResult):
@@ -232,38 +228,45 @@ class HarnessApp(App[None]):
         self.set_timer(STREAM_FLUSH, self._flush_stream)
 
     async def _flush_stream(self) -> None:
-        """Rebuild the answer widget, then follow the text.
+        """Add the new text to the answer widget.
 
-        The order matters: Markdown.update() removes the old block before it
-        mounts the new one, so the chat area is briefly empty. Scrolling
-        BEFORE the rebuild leaves the view clamped to the top, and the next
-        scroll yanks it back down - that is the up-and-down jumping. So we
-        await the rebuild first and scroll afterwards.
+        The answer is *appended*, not rebuilt. Rebuilding meant re-parsing
+        the whole answer and remounting every block on every flush, which
+        got slower the longer the answer got (400ms a flush after 1000
+        lines) - the screen then crawled behind the stream and jumped in
+        big steps. Appending only touches the last block, so a flush costs
+        the same at the end of a long answer as at the start.
         """
         self._flush_scheduled = False
-        if not self._stream_text:
-            return
         chat = self.query_one("#chat", ChatArea)
-        if self._stream_widget is None:
-            self._stream_widget = Markdown(self._stream_text, classes="assistant-message")
-            await chat.mount(self._stream_widget)
-        else:
-            await self._stream_widget.update(self._stream_text)
-        self._follow_down()
 
-    async def _on_thinking(self, text: str) -> None:
-        self._thinking_text += text
-        chat = self.query_one("#chat", ChatArea)
-        if self._thinking_widget is None:
+        if self._thinking_text and self._thinking_widget is None:
             self._thinking_widget = Static("", classes="thinking")
             await chat.mount(self._thinking_widget)
-        self._thinking_widget.update(self._thinking_text)
-        self._follow_down()
+        if self._thinking_widget is not None:
+            self._thinking_widget.update(self._thinking_text)
+
+        if not self._stream_text:
+            return
+        if self._stream_widget is None:
+            self._stream_widget = Markdown("", classes="assistant-message")
+            await chat.mount(self._stream_widget)
+            self._appended = 0
+        if len(self._stream_text) <= self._appended:
+            return
+        await self._stream_widget.append(self._stream_text[self._appended:])
+        self._appended = len(self._stream_text)
+
+    def _on_thinking(self, text: str) -> None:
+        """Collect the reasoning - it is repainted together with the answer."""
+        self._thinking_text += text
+        self._schedule_flush()
 
     async def _on_done(self, content: str) -> None:
         await self._flush_stream()
         self._stream_text = ""
         self._stream_widget = None
+        self._appended = 0
         self._thinking_text = ""
         self._thinking_widget = None
 
@@ -277,7 +280,6 @@ class HarnessApp(App[None]):
         block = ToolBlock(event.call_id, event.name, event.args)
         self._tool_blocks[event.call_id] = block
         await chat.mount(block)
-        self._follow_down()
 
     def _on_tool_result(self, event: ToolResult) -> None:
         block = self._tool_blocks.get(event.call_id)
@@ -432,6 +434,7 @@ class HarnessApp(App[None]):
         chat.remove_children()
         self._stream_text = ""
         self._stream_widget = None
+        self._appended = 0
         self._thinking_text = ""
         self._thinking_widget = None
         self._tool_blocks.clear()
@@ -446,5 +449,4 @@ class HarnessApp(App[None]):
                 chat.mount(Static(content, classes="user-message", markup=False))
             elif role == "assistant" and content:
                 chat.mount(Markdown(content, classes="assistant-message"))
-        self._follow = True
         self._follow_down()
