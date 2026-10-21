@@ -72,22 +72,24 @@ assistant
 On a **fresh machine** (one command does everything — venv, deps, PATH, `.env`):
 
 ```bash
-git clone <repo> the-harness && cd the-harness
+git clone https://github.com/AsishKumarDalal/harness.git && cd harness
 ./install.sh
 ```
 
 `install.sh` creates `.venv`, installs `openai` + `python-dotenv` + `textual` +
-`ddgs`, links `harness` into `~/.local/bin` (already on your PATH), and copies
-`.env.example` → `.env`. Edit `.env` (API key, `BASE_URL`, `MODEL`).
+`ddgs`, links **`harness`** and **`harness-tui`** into `~/.local/bin` (already on
+your PATH), and copies `.env.example` → `.env`. Edit `.env` (API key, `BASE_URL`,
+`MODEL`).
 
 By hand, if you prefer:
 
 ```bash
-git clone <repo> the-harness && cd the-harness
+git clone https://github.com/AsishKumarDalal/harness.git && cd harness
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt   # openai, python-dotenv, textual, ddgs
 cp .env.example .env                        # then edit it
 ln -s "$(pwd)/harness" ~/.local/bin/harness # ~/.local/bin is already on PATH
+ln -s "$(pwd)/harness-tui" ~/.local/bin/harness-tui
 ```
 
 Then, in **any** project folder:
@@ -97,6 +99,7 @@ cd ~/projects/my-app
 harness                     # starts the agent on the folder you are in
 harness ~/projects/other    # ...or on another folder
 harness -m gpt-4o-mini      # ...with another model
+harness-tui                 # ...the same agent, in the Textual TUI
 ```
 
 `harness` is a thin launcher: it runs the CLI with the venv python, keeps your
@@ -112,6 +115,12 @@ MODEL=k2-horizon-mova-36b-a4b
 
 All settings live in `config.py` and are overridable in `.env` (`CONTEXT_LIMIT`,
 `MAX_SUBAGENTS`, `MAX_SPAWN_DEPTH`, …).
+
+The **model** you pick in the app (`/model`) is saved in
+`$HARNESS_HOME/settings.json` and follows you from project to project — a new
+project does not mean a new model choice. A model can also be added from any
+other endpoint (base url + api key) — see "The model is a machine-wide choice"
+below.
 
 > `python`/`python3` are not on PATH in this environment — always use
 > `.venv/bin/python` (the `harness` script does that for you).
@@ -182,6 +191,9 @@ way opencode keeps its data in `~/.local/share/opencode`:
 | What | Where | Override |
 |---|---|---|
 | session notebook (`state.db`), safety rules (`safety.json`), `/export` JSONL | `~/.harness/` | `HARNESS_HOME` env (or `.env`) |
+| the model, the saved endpoints (`settings.json`, mode 600) | `~/.harness/` | `HARNESS_HOME` env (or `.env`) |
+| machine-wide skills (`<name>/SKILL.md`) | `~/.harness/skills/` | `HARNESS_HOME` env (or `.env`) |
+| project skills (`<name>/SKILL.md`) | `<project>/.harness/skills/` | — (this one *is* meant to be committed) |
 | the project the agent reads/writes | the folder you run `harness` in, `--project <dir>`, `PROJECT_DIR` env | — |
 
 So `harness` never drops a `.harness/`, a `__pycache__/`, or a database into
@@ -274,6 +286,23 @@ prompt and loads the full instructions on demand with the `skill` tool — so a
 skill costs nothing until it is really needed. `/skills` lists them. A project
 skill with the same name wins over a machine one.
 
+## The docs
+
+One document per phase — the problem, the mechanism, the design choices, and
+what was actually verified:
+
+| Doc | Phase | What it covers |
+|---|---|---|
+| [phase_1](docs/phase_1.md) | Foundation | venv, `.env`, config / llm / messages / minimal loop |
+| [phase_2](docs/phase_2.md) | Agent loop + tool calling | `SCHEMA`, `REGISTRY`, `run_tool`, error recovery |
+| [phase_3](docs/phase_3.md) | Real coding tools | path jail, output caps, search, shell |
+| [phase_4](docs/phase_4.md) | Safety gate | tiers, modes, hardline, rules, guards |
+| [phase_5](docs/phase_5.md) | Context management | prune @ 45 %, LLM summary @ 75 %, archive-not-delete |
+| [phase_6](docs/phase_6.md) | Sessions | SQLite notebook, write-through, resume, search |
+| [phase_7](docs/phase_7.md) | Streaming UI + thinking | OpenCode-style renderer, `delta.reasoning` routing |
+| [phase_8](docs/phase_8.md) | Subagents + parallel calls | `delegate`, two-level parallelism |
+| [phase_9](docs/phase_9.md) | Skills | `SKILL.md` folders, catalogue in the prompt, `skill` tool |
+
 ## Project layout
 
 ```
@@ -300,6 +329,24 @@ test/                 offline probes (safety, web, TUI, model, skills)
 > The harness' own state lives in `~/.harness/` (or `$HARNESS_HOME`), never in
 > the project folder — see "Your project stays clean" above.
 
+## Tests
+
+Everything is an offline probe — no model server needed:
+
+```bash
+.venv/bin/python test/test_safety.py        # 39  the permission gate
+.venv/bin/python test/test_web.py           # 26  the internet tools + SSRF guards
+.venv/bin/python test/test_tui_commands.py  # 25  slash commands, palette, sessions
+.venv/bin/python test/test_tui_layout.py    #  8  wrapping, never cut at the right
+.venv/bin/python test/test_tui_agent_md.py  #  6  the project's AGENT.md
+.venv/bin/python test/test_tui_scroll.py    #  9  the view never jumps while streaming
+.venv/bin/python test/test_tui_stream.py    #  5  a streamed answer reads like a finished one
+.venv/bin/python test/test_model_skills.py  # 47  the machine-wide model, endpoints, skills
+```
+
+The last two are regression tests: they fail on the code before the fix (98
+lines painted above the end of the chat; a 61 ms flush instead of 2 ms).
+
 ## How it works (30 seconds)
 
 1. You type a message → `agent()` adds it, runs `maybe_compact()` (no-op
@@ -317,6 +364,13 @@ test/                 offline probes (safety, web, TUI, model, skills)
 5. `delegate` spawns N children in threads; each gets a fresh `Conversation`,
    its own session row with `parent_session_id`, tools minus `delegate`, and
    returns a trimmed summary. Results are one consolidated block per call.
+
+In the TUI the same loop runs in a worker thread and reports small events
+(`Token`, `ToolCall`, `ApprovalNeeded`, …) that the app renders. Two details
+make the streaming feel solid: the answer is **appended** to the markdown block
+instead of being rebuilt (a flush costs the same at 1000 lines as at 10), and
+the chat is **anchored** to the bottom, so the compositor pins the view while
+the content grows — the text never jumps.
 
 See [docs/README.md](docs/README.md) and [docs/phase_1.md](docs/phase_1.md) for
 the full design walkthrough (9 phases, a diagram for every mechanism —
