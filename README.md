@@ -69,6 +69,41 @@ assistant
 
 ## Quick start
 
+Both paths need **Python 3.11+**; the npm path also needs **Node 18+**.
+
+### npm (recommended)
+
+```bash
+git clone https://github.com/AsishKumarDalal/harness.git && cd harness
+npm install -g .
+```
+
+That puts **`harness`** and **`harness-tui`** on your PATH. The first launch
+creates a private Python environment in `~/.harness/venv`, installs the
+dependencies, and copies `.env.example` to `~/.harness/.env` — edit that file
+once (API key, `BASE_URL`, `MODEL`). That first launch needs an internet
+connection so `pip` can download the Python packages.
+
+The npm package deliberately has no install scripts (newer npm versions block
+them by default), so the Python setup runs on first launch instead. After a
+`git pull`, the launcher notices a changed `requirements.txt` and installs the
+new dependencies by itself.
+
+```bash
+cd ~/projects/my-app
+harness --version
+harness
+```
+
+To remove the commands again: `npm uninstall -g the-harness`. Your sessions and
+settings stay in `~/.harness` (delete that folder too if you want them gone).
+
+> Upgrading from `./install.sh`? Its `~/.local/bin/harness` symlinks can shadow
+> npm's commands. Remove the two old symlinks, or make sure npm's global `bin`
+> folder comes first on your PATH (`npm prefix -g`).
+
+### Without npm
+
 On a **fresh machine** (one command does everything — venv, deps, PATH, `.env`):
 
 ```bash
@@ -102,10 +137,11 @@ harness -m gpt-4o-mini      # ...with another model
 harness-tui                 # ...the same agent, in the Textual TUI
 ```
 
-`harness` is a thin launcher: it runs the CLI with the venv python, keeps your
-current folder as the project, and keeps every file of its own out of it.
+`harness` is a thin launcher: it runs the CLI with the Python environment, keeps
+your current folder as the project, and keeps every file of its own out of it.
 
-`.env` (in the harness folder):
+`.env` (the npm launcher writes `~/.harness/.env`; a clone-local `.env` wins if
+both exist):
 
 ```
 OPENAI_API_KEY=ollama                  # server ignores it; SDK requires one
@@ -122,8 +158,9 @@ project does not mean a new model choice. A model can also be added from any
 other endpoint (base url + api key) — see "The model is a machine-wide choice"
 below.
 
-> `python`/`python3` are not on PATH in this environment — always use
-> `.venv/bin/python` (the `harness` script does that for you).
+> If you run the checkout by hand, `python`/`python3` are not on PATH in this
+> environment — always use `.venv/bin/python` (the launcher scripts do that for
+> you).
 
 ## Terminal UI (Textual)
 
@@ -137,8 +174,8 @@ cd ~/projects/my-app
 .venv/bin/python -m tui -m gpt-4o  # ...with another model
 ```
 
-After `./install.sh` there is also a `harness-tui` command, same idea as
-`harness`:
+After `npm install -g .` (or `./install.sh`) there is also a `harness-tui`
+command, same idea as `harness`:
 
 ```bash
 cd ~/projects/my-app
@@ -193,6 +230,7 @@ way opencode keeps its data in `~/.local/share/opencode`:
 | session notebook (`state.db`), safety rules (`safety.json`), `/export` JSONL | `~/.harness/` | `HARNESS_HOME` env (or `.env`) |
 | the model, the saved endpoints (`settings.json`, mode 600) | `~/.harness/` | `HARNESS_HOME` env (or `.env`) |
 | machine-wide skills (`<name>/SKILL.md`) | `~/.harness/skills/` | `HARNESS_HOME` env (or `.env`) |
+| Python environment for an npm install | `~/.harness/venv/` | `HARNESS_HOME` env |
 | project skills (`<name>/SKILL.md`) | `<project>/.harness/skills/` | — (this one *is* meant to be committed) |
 | the project the agent reads/writes | the folder you run `harness` in, `--project <dir>`, `PROJECT_DIR` env | — |
 
@@ -306,10 +344,13 @@ what was actually verified:
 ## Project layout
 
 ```
+package.json          npm package: `npm install -g .`, bin entries
+bin/                   the npm launchers (Node -> Python, cwd preserved)
+scripts/               first-run Python venv bootstrap + process launcher
 cli.py           60   the `harness` command: arg parsing, project selection
 harness          28   launcher script (put it on your PATH)
 harness-tui      28   launcher for the Textual front-end
-install.sh       92   one-command setup for a fresh machine
+install.sh       92   one-command setup for a fresh machine (no Node needed)
 config.py       230   all settings, read from .env
 safety.py      477   permission gate: tiers, modes, hardline, guards
 web.py         244   the internet tools: ddgs search + safe page fetch

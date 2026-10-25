@@ -5,7 +5,10 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load .env sitting next to this file, regardless of where you run from
+# Settings come from two places: the .env next to this file (a clone), and the
+# machine-wide .env in HARNESS_HOME (where an npm install keeps it). The repo
+# .env is read first — it can set HARNESS_HOME — and the machine .env fills in
+# whatever it leaves unset. Real environment variables always win over both.
 ROOT = Path(__file__).resolve().parent
 load_dotenv(ROOT / ".env")
 
@@ -21,6 +24,7 @@ def _get(name: str, default: str = "") -> str:
 # The harness never drops a single file of its own into START_DIR.
 # ---------------------------------------------------------------------------
 HARNESS_HOME = Path(_get("HARNESS_HOME") or (Path.home() / ".harness")).expanduser()
+load_dotenv(HARNESS_HOME / ".env")
 LEGACY_STATE_DIR = ROOT / ".harness"      # v1 kept state inside the project
 
 
@@ -218,10 +222,13 @@ SUMMARY_MODEL   = _get("SUMMARY_MODEL")
 def require_api_key() -> str:
     """Guard so the failure message is friendly, not a stack trace."""
     if not API_KEY or "REPLACE" in API_KEY or "..." in API_KEY:
+        env_file = ROOT / ".env"
+        if not env_file.exists():
+            env_file = HARNESS_HOME / ".env"
         raise RuntimeError(
             "OPENAI_API_KEY is not set.\n"
             "  1. Get a key: https://platform.openai.com/api-keys\n"
-            f"  2. Paste it into {ROOT / '.env'}\n"
+            f"  2. Paste it into {env_file}\n"
             "  3. Run: harness"
         )
     return API_KEY

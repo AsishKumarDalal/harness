@@ -1,0 +1,52 @@
+{
+  "name": "the-harness",
+  "version": "0.1.0",
+  "description": "A small, complete agentic coding CLI — npm install, Python inside.",
+  "type": "commonjs",
+  "bin": {
+    "harness": "bin/harness.js",
+    "harness-tui": "bin/harness-tui.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "cli.py",
+    "config.py",
+    "context.py",
+    "llm.py",
+    "main.py",
+    "messages.py",
+    "safety.py",
+    "sessions.py",
+    "skills.py",
+    "subagents.py",
+    "tools.py",
+    "web.py",
+    "tui/*.py",
+    "tui/*.tcss",
+    "tui/screens/*.py",
+    "tui/widgets/*.py",
+    "requirements.txt",
+    ".env.example"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AsishKumarDalal/harness.git"
+  },
+  "homepage": "https://github.com/AsishKumarDalal/harness#readme",
+  "bugs": {
+    "url": "https://github.com/AsishKumarDalal/harness/issues"
+  },
+  "keywords": [
+    "agent",
+    "cli",
+    "coding-agent",
+    "ai",
+    "python",
+    "tui"
+  ],
+  "license": "UNLICENSED"
+}
