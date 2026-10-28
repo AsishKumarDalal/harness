@@ -167,6 +167,12 @@ below.
 The same agent, with an opencode-style terminal front-end: dark, chat-centred,
 keyboard-first.
 
+<p align="center">
+  <img src="assets/tui.png" alt="The harness TUI: a streaming markdown answer, tool-call blocks and a coloured diff" width="100%">
+</p>
+
+<p align="center"><em>Mid-turn: streaming markdown, a tool call and a coloured diff.</em></p>
+
 ```bash
 cd ~/projects/my-app
 .venv/bin/python -m tui            # the folder you are in is the project
