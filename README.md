@@ -16,20 +16,11 @@
   <img alt="Status" src="https://img.shields.io/badge/Status-Experimental-orange">
 </p>
 
-```text
-you > refactor the login flow to use sessions instead of cookies
-assistant
-  thinking...  (dim/italic reasoning block, then ───)
-  ├─ read_file({"path":"src/auth.py"})
-  └─ ...file contents...
-  ├─ delegate({"tasks":[
-       {"goal":"map the auth-related files","context":"..."},
-       {"goal":"find all cookie usages","context":"..."}]})
-  └─ [2 subagent(s) finished]
-  ...synthesized answer...
-  model │ ctx 12345/38000 (32%) │ in:9000 out:400
-```
+<p align="center">
+  <img src="assets/tui.png" alt="The harness TUI: a streaming markdown answer, tool-call blocks and a coloured diff" width="100%">
+</p>
 
+<p align="center"><em>The harness TUI, mid-turn: streaming markdown, a tool call and a coloured diff.</em></p>
 
 ## Features
 
@@ -166,12 +157,6 @@ below.
 
 The same agent, with an opencode-style terminal front-end: dark, chat-centred,
 keyboard-first.
-
-<p align="center">
-  <img src="assets/tui.png" alt="The harness TUI: a streaming markdown answer, tool-call blocks and a coloured diff" width="100%">
-</p>
-
-<p align="center"><em>Mid-turn: streaming markdown, a tool call and a coloured diff.</em></p>
 
 ```bash
 cd ~/projects/my-app
