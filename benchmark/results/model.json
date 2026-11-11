@@ -1,0 +1,258 @@
+{
+  "suite": "model",
+  "server": {
+    "base_url": "https://small-present-educated-believe.trycloudflare.com/v1",
+    "model": "k2-horizon-mova-36b-a4b",
+    "host": "small-present-educated-believe.trycloudflare.com",
+    "python": "3.14.4",
+    "cpu_count": 12
+  },
+  "latency": {
+    "tiny": {
+      "ttft_any_ms": {
+        "n": 3,
+        "min": 877.344324,
+        "p50": 917.26602,
+        "p95": 1123.235743,
+        "max": 1123.235743,
+        "mean": 972.615362,
+        "total": 2917.846087
+      },
+      "ttft_content_ms": {
+        "n": 3,
+        "min": 6302.416764,
+        "p50": 9364.446975,
+        "p95": 12595.296086,
+        "max": 12595.296086,
+        "mean": 9420.719942,
+        "total": 28262.159825
+      },
+      "total_ms": {
+        "n": 3,
+        "min": 6328.731163,
+        "p50": 9388.360395,
+        "p95": 12623.909188,
+        "max": 12623.909188,
+        "mean": 9447.000249,
+        "total": 28341.000746
+      },
+      "completion_tokens": {
+        "n": 3,
+        "min": 218,
+        "p50": 366,
+        "p95": 508,
+        "max": 508,
+        "mean": 364,
+        "total": 1092
+      },
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ]
+    },
+    "medium": {
+      "ttft_any_ms": {
+        "n": 3,
+        "min": 491.573549,
+        "p50": 570.645413,
+        "p95": 830.320327,
+        "max": 830.320327,
+        "mean": 630.84643,
+        "total": 1892.539289
+      },
+      "ttft_content_ms": {
+        "n": 3,
+        "min": 968.892537,
+        "p50": 1175.53057,
+        "p95": 1813.919216,
+        "max": 1813.919216,
+        "mean": 1319.447441,
+        "total": 3958.342323
+      },
+      "total_ms": {
+        "n": 3,
+        "min": 2633.353972,
+        "p50": 2984.097519,
+        "p95": 3866.668389,
+        "max": 3866.668389,
+        "mean": 3161.373293,
+        "total": 9484.11988
+      },
+      "completion_tokens": {
+        "n": 3,
+        "min": 94,
+        "p50": 105,
+        "p95": 132,
+        "max": 132,
+        "mean": 110.333333,
+        "total": 331
+      },
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ]
+    },
+    "reasoning": {
+      "ttft_any_ms": {
+        "n": 3,
+        "min": 495.360381,
+        "p50": 522.361397,
+        "p95": 994.631214,
+        "max": 994.631214,
+        "mean": 670.784331,
+        "total": 2012.352992
+      },
+      "ttft_content_ms": {
+        "n": 3,
+        "min": 5860.461199,
+        "p50": 7089.15993,
+        "p95": 9186.478682,
+        "max": 9186.478682,
+        "mean": 7378.699937,
+        "total": 22136.099811
+      },
+      "total_ms": {
+        "n": 3,
+        "min": 9871.340681,
+        "p50": 9937.922923,
+        "p95": 12241.378616,
+        "max": 12241.378616,
+        "mean": 10683.547407,
+        "total": 32050.64222
+      },
+      "completion_tokens": {
+        "n": 3,
+        "min": 382,
+        "p50": 408,
+        "p95": 506,
+        "max": 506,
+        "mean": 432,
+        "total": 1296
+      },
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ]
+    }
+  },
+  "truncation": {
+    "runs": [
+      {
+        "ttft_any_ms": 1121.933700000227,
+        "ttft_content_ms": 87365.89050899966,
+        "total_ms": 146924.76467599953,
+        "content_chars": 9322,
+        "reasoning_chars": 0,
+        "finish_reason": "stop",
+        "prompt_tokens": 69,
+        "completion_tokens": 5570,
+        "total_tokens": 5639
+      },
+      {
+        "ttft_any_ms": 1490.5426850000367,
+        "ttft_content_ms": null,
+        "total_ms": 534908.724728999,
+        "content_chars": 0,
+        "reasoning_chars": 0,
+        "finish_reason": "length",
+        "prompt_tokens": 69,
+        "completion_tokens": 16384,
+        "total_tokens": 16453
+      },
+      {
+        "ttft_any_ms": 3151.4156539997202,
+        "ttft_content_ms": 48760.29782600017,
+        "total_ms": 96801.7448949995,
+        "content_chars": 7918,
+        "reasoning_chars": 0,
+        "finish_reason": "stop",
+        "prompt_tokens": 69,
+        "completion_tokens": 3723,
+        "total_tokens": 3792
+      }
+    ],
+    "truncated": 1,
+    "empty_answers": 1,
+    "total": 3,
+    "llm_reads_finish_reason": true,
+    "truncation_rate": 0.333
+  },
+  "token_estimator": {
+    "words": {
+      "chars": 946,
+      "server_tokens": 222,
+      "harness_guess": 236,
+      "ratio": 0.9407,
+      "error_pct": 6.3
+    },
+    "code": {
+      "chars": 1126,
+      "server_tokens": 461,
+      "harness_guess": 281,
+      "ratio": 1.6406,
+      "error_pct": -39.0
+    },
+    "json": {
+      "chars": 1766,
+      "server_tokens": 741,
+      "harness_guess": 441,
+      "ratio": 1.6803,
+      "error_pct": -40.5
+    },
+    "prose": {
+      "chars": 2106,
+      "server_tokens": 442,
+      "harness_guess": 526,
+      "ratio": 0.8403,
+      "error_pct": 19.0
+    }
+  },
+  "prompt_sweep": {
+    "500": {
+      "prompt_tokens": 741,
+      "ttft_content_ms": 6952.023466001265,
+      "total_ms": 7319.524648000879,
+      "finish_reason": "stop",
+      "answer_chars": 69
+    },
+    "2000": {
+      "prompt_tokens": 2181,
+      "ttft_content_ms": 9745.310036001683,
+      "total_ms": 10208.039327000733,
+      "finish_reason": "stop",
+      "answer_chars": 83
+    },
+    "8000": {
+      "prompt_tokens": 7221,
+      "ttft_content_ms": 22749.56265400033,
+      "total_ms": 23197.592180000356,
+      "finish_reason": "stop",
+      "answer_chars": 64
+    },
+    "20000": {
+      "prompt_tokens": 18021,
+      "ttft_content_ms": 29009.319249998953,
+      "total_ms": 29699.41717799884,
+      "finish_reason": "stop",
+      "answer_chars": 69
+    },
+    "40000": {
+      "prompt_tokens": 35301,
+      "ttft_content_ms": 47602.45687800125,
+      "total_ms": 48852.09008600032,
+      "finish_reason": "stop",
+      "answer_chars": 83
+    }
+  },
+  "report": {
+    "title": "live model",
+    "passed": 0,
+    "failed": 0,
+    "total": 0,
+    "pass_rate": 0.0,
+    "failures": []
+  }
+}

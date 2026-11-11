@@ -252,7 +252,8 @@ class HarnessAdapter:
 
                 convo.add_assistant(reply)
                 if not reply.tool_calls:
-                    self._emit(TurnDone(content=reply.content or ""))
+                    self._emit(TurnDone(content=reply.content or "",
+                                        truncated=bool(getattr(reply, "truncated", False))))
                     break
 
                 results: dict[str, str] = {}

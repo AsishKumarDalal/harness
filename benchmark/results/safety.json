@@ -1,0 +1,85 @@
+{
+  "suite": "safety",
+  "corpus_size": 69,
+  "matrix": {
+    "free": {
+      "free": 25,
+      "ask": 1,
+      "block": 0
+    },
+    "ask": {
+      "free": 0,
+      "ask": 17,
+      "block": 0
+    },
+    "block": {
+      "free": 0,
+      "ask": 6,
+      "block": 20
+    }
+  },
+  "false_negatives": 0,
+  "false_positives": 1,
+  "missed_blocks": 6,
+  "accuracy_pct": 89.9,
+  "misclassified": [
+    {
+      "command": "rm -rf ~/",
+      "expected": "block",
+      "got": "ask",
+      "note": "recursive delete of home"
+    },
+    {
+      "command": "rm -rf ~/",
+      "expected": "block",
+      "got": "ask",
+      "note": "home delete, trailing slash"
+    },
+    {
+      "command": "rm -rf ~/*",
+      "expected": "block",
+      "got": "ask",
+      "note": "home delete, glob"
+    },
+    {
+      "command": "rm -rf $HOME/",
+      "expected": "block",
+      "got": "ask",
+      "note": "home delete via $HOME, trailing slash"
+    },
+    {
+      "command": "rm -r -f /",
+      "expected": "block",
+      "got": "ask",
+      "note": "separated flags"
+    },
+    {
+      "command": "rm --recursive --force /",
+      "expected": "block",
+      "got": "ask",
+      "note": "long flags"
+    },
+    {
+      "command": "ls > /dev/null",
+      "expected": "free",
+      "got": "ask",
+      "note": "redirect to dev null is harmless"
+    }
+  ],
+  "report": {
+    "title": "safety gate",
+    "passed": 62,
+    "failed": 7,
+    "total": 69,
+    "pass_rate": 89.9,
+    "failures": [
+      "'rm -rf ~/': expected block, got ask",
+      "'rm -rf ~/': expected block, got ask",
+      "'rm -rf ~/*': expected block, got ask",
+      "'rm -rf $HOME/': expected block, got ask",
+      "'rm -r -f /': expected block, got ask",
+      "'rm --recursive --force /': expected block, got ask",
+      "'ls > /dev/null': expected free, got ask"
+    ]
+  }
+}

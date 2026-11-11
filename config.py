@@ -211,6 +211,7 @@ START_DIR  = _project_dir()      # the PROJECT the agent works in (not the harne
 CONTEXT_LIMIT   = int(_get("CONTEXT_LIMIT", "50000"))    # your model's window
 CONTEXT_RESERVE = int(_get("CONTEXT_RESERVE", "12000"))  # output room + next tool blob
 CONTEXT_BUDGET  = CONTEXT_LIMIT - CONTEXT_RESERVE        # what the conversation may use
+MAX_TOKENS      = int(_get("MAX_TOKENS", "16384"))        # the output budget of ONE turn
 PRUNE_AT        = 0.45      # tier 1: stub old tool outputs (free, no LLM)
 COMPACT_AT      = 0.75      # tier 2: LLM summarizes the middle (Hermes default 0.75)
 COMPACT_TO      = 0.60      # compact DOWN to this (one deep cut beats ten nervous ones)

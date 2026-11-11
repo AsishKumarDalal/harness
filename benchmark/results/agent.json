@@ -1,0 +1,466 @@
+{
+  "suite": "agent",
+  "server": {
+    "base_url": "https://small-present-educated-believe.trycloudflare.com/v1",
+    "model": "k2-horizon-mova-36b-a4b",
+    "host": "small-present-educated-believe.trycloudflare.com",
+    "python": "3.14.4",
+    "cpu_count": 12
+  },
+  "repeat": 1,
+  "summary": {
+    "add_cli_flag": {
+      "pass_rate": 100.0,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "pass_k": 1.0,
+      "wall_s": {
+        "n": 1,
+        "min": 67.24,
+        "p50": 67.24,
+        "p95": 67.24,
+        "max": 67.24,
+        "mean": 67.24,
+        "total": 67.24
+      },
+      "turns": {
+        "n": 1,
+        "min": 7,
+        "p50": 7,
+        "p95": 7,
+        "max": 7,
+        "mean": 7,
+        "total": 7
+      },
+      "tool_calls": {
+        "n": 1,
+        "min": 6,
+        "p50": 6,
+        "p95": 6,
+        "max": 6,
+        "mean": 6,
+        "total": 6
+      },
+      "tokens": {
+        "n": 1,
+        "min": 1500,
+        "p50": 1500,
+        "p95": 1500,
+        "max": 1500,
+        "mean": 1500,
+        "total": 1500
+      }
+    },
+    "explain_code": {
+      "pass_rate": 100.0,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "pass_k": 1.0,
+      "wall_s": {
+        "n": 1,
+        "min": 67.74,
+        "p50": 67.74,
+        "p95": 67.74,
+        "max": 67.74,
+        "mean": 67.74,
+        "total": 67.74
+      },
+      "turns": {
+        "n": 1,
+        "min": 3,
+        "p50": 3,
+        "p95": 3,
+        "max": 3,
+        "mean": 3,
+        "total": 3
+      },
+      "tool_calls": {
+        "n": 1,
+        "min": 2,
+        "p50": 2,
+        "p95": 2,
+        "max": 2,
+        "mean": 2,
+        "total": 2
+      },
+      "tokens": {
+        "n": 1,
+        "min": 1070,
+        "p50": 1070,
+        "p95": 1070,
+        "max": 1070,
+        "mean": 1070,
+        "total": 1070
+      }
+    },
+    "fix_off_by_one": {
+      "pass_rate": 100.0,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "pass_k": 1.0,
+      "wall_s": {
+        "n": 1,
+        "min": 10.94,
+        "p50": 10.94,
+        "p95": 10.94,
+        "max": 10.94,
+        "mean": 10.94,
+        "total": 10.94
+      },
+      "turns": {
+        "n": 1,
+        "min": 5,
+        "p50": 5,
+        "p95": 5,
+        "max": 5,
+        "mean": 5,
+        "total": 5
+      },
+      "tool_calls": {
+        "n": 1,
+        "min": 4,
+        "p50": 4,
+        "p95": 4,
+        "max": 4,
+        "mean": 4,
+        "total": 4
+      },
+      "tokens": {
+        "n": 1,
+        "min": 1248,
+        "p50": 1248,
+        "p95": 1248,
+        "max": 1248,
+        "mean": 1248,
+        "total": 1248
+      }
+    },
+    "rename_across_files": {
+      "pass_rate": 100.0,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "pass_k": 1.0,
+      "wall_s": {
+        "n": 1,
+        "min": 19.76,
+        "p50": 19.76,
+        "p95": 19.76,
+        "max": 19.76,
+        "mean": 19.76,
+        "total": 19.76
+      },
+      "turns": {
+        "n": 1,
+        "min": 7,
+        "p50": 7,
+        "p95": 7,
+        "max": 7,
+        "mean": 7,
+        "total": 7
+      },
+      "tool_calls": {
+        "n": 1,
+        "min": 12,
+        "p50": 12,
+        "p95": 12,
+        "max": 12,
+        "mean": 12,
+        "total": 12
+      },
+      "tokens": {
+        "n": 1,
+        "min": 1722,
+        "p50": 1722,
+        "p95": 1722,
+        "max": 1722,
+        "mean": 1722,
+        "total": 1722
+      }
+    },
+    "write_tests": {
+      "pass_rate": 100.0,
+      "pass_at_1": 1.0,
+      "pass_at_k": 1.0,
+      "pass_k": 1.0,
+      "wall_s": {
+        "n": 1,
+        "min": 13.28,
+        "p50": 13.28,
+        "p95": 13.28,
+        "max": 13.28,
+        "mean": 13.28,
+        "total": 13.28
+      },
+      "turns": {
+        "n": 1,
+        "min": 6,
+        "p50": 6,
+        "p95": 6,
+        "max": 6,
+        "mean": 6,
+        "total": 6
+      },
+      "tool_calls": {
+        "n": 1,
+        "min": 5,
+        "p50": 5,
+        "p95": 5,
+        "max": 5,
+        "mean": 5,
+        "total": 5
+      },
+      "tokens": {
+        "n": 1,
+        "min": 1480,
+        "p50": 1480,
+        "p95": 1480,
+        "max": 1480,
+        "mean": 1480,
+        "total": 1480
+      }
+    }
+  },
+  "runs": [
+    {
+      "task": "add_cli_flag",
+      "passed": true,
+      "wall_s": 67.24,
+      "check_s": 0.04,
+      "turns": 7,
+      "tool_calls": 6,
+      "prompt_tokens": 1439,
+      "completion_tokens": 61,
+      "answer_chars": 203,
+      "verdict": {
+        "pass": true,
+        "checks": [
+          "prints the greeting",
+          "prints the verbose line",
+          "exits cleanly",
+          "the plain call still works"
+        ]
+      },
+      "trace": [
+        {
+          "name": "search_files",
+          "args": "{\"needle\":\"greet.py\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"ls -la\"}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"greet.py\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"greet.py\",\"old_string\":\"def main(argv):\\n    name = argv[0] if argv else \\\"world\\\"\\n    print(greet(name))\",\"new_string\":\"def main(argv):\\n    verbose = \\\"--verbose\\\" in argv\\n    args = [arg for arg in argv if arg != \\\"--verbose\\\"]\\n    name = args[0] if args else \\\"world\\\"\\n    print(greet(name))\\n    if verbose:\\n        print(\\\"Greeting completed.\\\")\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"python greet.py --verbose Alice \\u0026\\u0026 echo \\\"---\\\" \\u0026\\u0026 python greet.py Bob\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"python3 greet.py --verbose Alice \\u0026\\u0026 echo \\\"---\\\" \\u0026\\u0026 python3 greet.py Bob\"}"
+        }
+      ],
+      "check_output": "stdout: 'Hello, Alice!\\nGreeting completed.\\n'\nok   prints the greeting -> Hello, Alice!\nGreeting completed.\nok   prints the verbose line -> Hello, Alice!\nGreeting completed.\nok   exits cleanly -> exit=0\nok   the plain call still works -> Hello, Bob!\n{\"pass\": true, \"checks\": [\"prints the greeting\", \"prints the verbose line\", \"exits cleanly\", \"the plain call still works\"]}\n",
+      "check_error": "",
+      "session_id": "20261111_170325_74a993"
+    },
+    {
+      "task": "explain_code",
+      "passed": true,
+      "wall_s": 67.74,
+      "check_s": 0.02,
+      "turns": 3,
+      "tool_calls": 2,
+      "prompt_tokens": 1033,
+      "completion_tokens": 37,
+      "answer_chars": 168,
+      "verdict": {
+        "pass": true,
+        "checks": [
+          "the answer mentions uppercasing",
+          "the answer mentions the name field",
+          "the answer is not empty",
+          "the file was not modified"
+        ]
+      },
+      "trace": [
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"find . -name \\\"pipeline.py\\\" -not -path \\\"*/node_modules/*\\\" -not -path \\\"*/.git/*\\\" 2\\u003e/dev/null\"}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"./pipeline.py\"}"
+        }
+      ],
+      "check_output": "ok   the answer mentions uppercasing -> \nok   the answer mentions the name field -> \nok   the answer is not empty -> \nok   the file was not modified -> \n{\"pass\": true, \"checks\": [\"the answer mentions uppercasing\", \"the answer mentions the name field\", \"the answer is not empty\", \"the file was not modified\"]}\n",
+      "check_error": "",
+      "session_id": "20261111_170432_aab1f7"
+    },
+    {
+      "task": "fix_off_by_one",
+      "passed": true,
+      "wall_s": 10.94,
+      "check_s": 0.02,
+      "turns": 5,
+      "tool_calls": 4,
+      "prompt_tokens": 1175,
+      "completion_tokens": 73,
+      "answer_chars": 264,
+      "verdict": {
+        "pass": true,
+        "checks": [
+          "sum_range(1, 5) == 15",
+          "sum_range(0, 0) == 0"
+        ]
+      },
+      "trace": [
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"calc.py\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"calc.py\",\"old_string\":\"    for i in range(start, end):\\n        total += i\",\"new_string\":\"    for i in range(start, end + 1):\\n        total += i\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"python calc.py\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"python3 calc.py\"}"
+        }
+      ],
+      "check_output": "ok   sum_range(1, 5) == 15 got 15\nok   sum_range(0, 0) == 0 got 0\n{\"pass\": true, \"checks\": [\"sum_range(1, 5) == 15\", \"sum_range(0, 0) == 0\"]}\n",
+      "check_error": "",
+      "session_id": "20261111_170540_e886e3"
+    },
+    {
+      "task": "rename_across_files",
+      "passed": true,
+      "wall_s": 19.76,
+      "check_s": 0.04,
+      "turns": 7,
+      "tool_calls": 12,
+      "prompt_tokens": 1657,
+      "completion_tokens": 65,
+      "answer_chars": 262,
+      "verdict": {
+        "pass": true,
+        "checks": [
+          "the old name is gone everywhere",
+          "the new name is used",
+          "the modules still import and run"
+        ]
+      },
+      "trace": [
+        {
+          "name": "search_files",
+          "args": "{\"needle\":\"calculate_total\"}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"a.py\"}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"b.py\"}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"c.py\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"a.py\",\"old_string\":\"def calculate_total(prices):\",\"new_string\":\"def compute_total(prices):\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"b.py\",\"old_string\":\"from a import calculate_total\",\"new_string\":\"from a import compute_total\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"b.py\",\"old_string\":\"return calculate_total(PRICES)\",\"new_string\":\"return compute_total(PRICES)\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"c.py\",\"old_string\":\"from a import calculate_total\",\"new_string\":\"from a import compute_total\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"c.py\",\"old_string\":\"return calculate_total(ITEMS)\",\"new_string\":\"return compute_total(ITEMS)\"}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"c.py\"}"
+        },
+        {
+          "name": "edit_file",
+          "args": "{\"path\":\"c.py\",\"old_string\":\"    return calculate_total(ITEMS)\",\"new_string\":\"    return compute_total(ITEMS)\"}"
+        },
+        {
+          "name": "search_files",
+          "args": "{\"needle\":\"calculate_total\"}"
+        }
+      ],
+      "check_output": "ok   the old name is gone everywhere -> []\nok   the new name is used -> \nok   the modules still import and run -> 60 4.0\n{\"pass\": true, \"checks\": [\"the old name is gone everywhere\", \"the new name is used\", \"the modules still import and run\"]}\n",
+      "check_error": "",
+      "session_id": "20261111_170551_b10746"
+    },
+    {
+      "task": "write_tests",
+      "passed": true,
+      "wall_s": 13.28,
+      "check_s": 0.03,
+      "turns": 6,
+      "tool_calls": 5,
+      "prompt_tokens": 1425,
+      "completion_tokens": 55,
+      "answer_chars": 196,
+      "verdict": {
+        "pass": true,
+        "checks": [
+          "the test file exists",
+          "the tests pass",
+          "covers is_prime(2)",
+          "covers is_prime(4)",
+          "covers is_prime(1)",
+          "uses plain asserts"
+        ]
+      },
+      "trace": [
+        {
+          "name": "list_files",
+          "args": "{}"
+        },
+        {
+          "name": "read_file",
+          "args": "{\"path\":\"mathlib.py\"}"
+        },
+        {
+          "name": "write_file",
+          "args": "{\"path\":\"test_mathlib.py\",\"content\":\"\\\"\\\"\\\"Tests for mathlib.is_prime.\\\"\\\"\\\"\\n\\nfrom mathlib import is_prime\\n\\n\\ndef main():\\n    # Primes should return True\\n    assert is_prime(2) is True\\n    assert is_prime(3) is True\\n    assert is_prime(5) is True\\n    assert is_prime(7) is True\\n    assert is_prime(11) is True\\n\\n    # Non-primes (and edge cases) should return False\\n    assert is_prime(0) is False\\n    assert is_prime(1) is False\\n    assert is_prime(-3) is False\\n    assert is_prime(4) is False\\n    assert is_prime(9) is False\\n    assert is_prime(25) is False\\n\\n    print(\\\"All tests passed!\\\")\\n\\n\\nif __name__ == \\\"__main__\\\":\\n    main()\\n\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"python test_mathlib.py\"}"
+        },
+        {
+          "name": "run_command",
+          "args": "{\"command\":\"python3 test_mathlib.py\"}"
+        }
+      ],
+      "check_output": "ok   the test file exists -> /tmp/hbench-write_tests-0eayvj6u/project/test_mathlib.py\nok   the tests pass -> All tests passed!\nok   covers is_prime(2) -> \nok   covers is_prime(4) -> \nok   covers is_prime(1) -> \nok   uses plain asserts -> \n{\"pass\": true, \"checks\": [\"the test file exists\", \"the tests pass\", \"covers is_prime(2)\", \"covers is_prime(4)\", \"covers is_prime(1)\", \"uses plain asserts\"]}\n",
+      "check_error": "",
+      "session_id": "20261111_170611_ce42c7"
+    }
+  ],
+  "pass_rate": 100.0
+}

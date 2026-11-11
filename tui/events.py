@@ -68,6 +68,7 @@ class TurnDone:
     """The model answered with no further tool calls."""
 
     content: str = ""
+    truncated: bool = False       # the answer hit the output budget
 
 
 @dataclass

@@ -31,9 +31,15 @@ class _TC:
 
 
 class _Msg:
-    def __init__(self, content, tool_calls):
+    def __init__(self, content, tool_calls, finish_reason=None):
         self.content = content
         self.tool_calls = tool_calls
+        self.finish_reason = finish_reason
+
+    @property
+    def truncated(self) -> bool:
+        """The answer was cut off by the output budget (finish_reason='length')."""
+        return self.finish_reason == "length"
 
 
 def _find_tag(text, tags):
@@ -119,6 +125,33 @@ def list_models(base_url: str, api_key: str) -> list[str]:
     return sorted(name for name in names if name)
 
 
+def _prompt_estimate(messages: list) -> int:
+    """A rough token count of the request.
+
+    Reuses context.history_tokens() (the same number the compaction
+    thresholds are based on) so the output budget and the context
+    management never disagree about how big the request is.
+    """
+    try:
+        from context import history_tokens
+        return history_tokens(messages)
+    except Exception:
+        return sum(len(str(m.get("content") or "")) // 4 for m in messages)
+
+
+def _max_tokens(messages: list) -> int:
+    """The output budget of one turn.
+
+    config.MAX_TOKENS is the ceiling. It is clamped so that the prompt
+    and the answer still fit the model's window — a server that does not
+    clamp for us would reject the request outright.
+    """
+    cap = int(getattr(config, "MAX_TOKENS", 16384))
+    limit = int(getattr(config, "CONTEXT_LIMIT", 50000))
+    room = limit - _prompt_estimate(messages) - 1024
+    return max(1024, min(cap, room))
+
+
 def chat(messages: list, tools: list | None = None, model: str | None = None,
          on_token=None, on_thinking=None, stop=None) -> object:
     """Stream the reply. Answer tokens go to on_token, reasoning to on_thinking.
@@ -129,7 +162,7 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
     kwargs = {
         "model": model or config.MODEL,   # read at call time: /model changes it
         "messages": messages,
-        "max_tokens": 4096,
+        "max_tokens": _max_tokens(messages),
         "stream": True,
         "stream_options": {"include_usage": True},
     }
@@ -141,6 +174,7 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
     parts: list[str] = []
     acc: dict = {}            # index -> {id, name, arguments}
     usage = None
+    finish = None
 
     def answer(text):
         parts.append(text)
@@ -160,6 +194,12 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
             usage = chunk.usage
         if not chunk.choices:
             continue
+        # 'length' means the answer was cut off by the output budget —
+        # without this the harness cannot tell a finished answer from a
+        # truncated one.
+        reason = getattr(chunk.choices[0], "finish_reason", None)
+        if reason:
+            finish = reason
         delta = chunk.choices[0].delta
         if delta is None:
             continue
@@ -187,4 +227,4 @@ def chat(messages: list, tools: list | None = None, model: str | None = None,
                           completion_tokens=usage.completion_tokens)
 
     tool_calls = [_TC(a["id"], a["name"], a["arguments"]) for a in acc.values()] or None
-    return _Msg("".join(parts), tool_calls)
+    return _Msg("".join(parts), tool_calls, finish)

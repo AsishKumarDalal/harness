@@ -141,7 +141,7 @@ MODEL=k2-horizon-mova-36b-a4b
 ```
 
 All settings live in `config.py` and are overridable in `.env` (`CONTEXT_LIMIT`,
-`MAX_SUBAGENTS`, `MAX_SPAWN_DEPTH`, …).
+`MAX_TOKENS`, `MAX_SUBAGENTS`, …).
 
 The **model** you pick in the app (`/model`) is saved in
 `$HARNESS_HOME/settings.json` and follows you from project to project — a new
@@ -342,20 +342,21 @@ cli.py           60   the `harness` command: arg parsing, project selection
 harness          28   launcher script (put it on your PATH)
 harness-tui      28   launcher for the Textual front-end
 install.sh       92   one-command setup for a fresh machine (no Node needed)
-config.py       230   all settings, read from .env
+config.py       238   all settings, read from .env
 safety.py      477   permission gate: tiers, modes, hardline, guards
 web.py         244   the internet tools: ddgs search + safe page fetch
 skills.py      150   loadable instruction sets (Claude Code style)
-llm.py         189   the ONLY file that talks to the model (streaming, thinking)
+llm.py         229   the ONLY file that talks to the model (streaming, thinking)
 messages.py     58   Conversation — write-through live memory
 tools.py       277   tool registry + runner + schemas
-main.py        374   agent loop, REPL, streaming UI
+main.py        380   agent loop, REPL, streaming UI
 context.py     189   two-tier compaction
 sessions.py    235   SQLite notebook (the archive)
 subagents.py   153   parallel child agents (delegate)
 tui/            2.1k the Textual front-end (app, adapter, widgets, screens, theme)
 docs/                 one detailed doc per phase (Mermaid diagrams)
 test/                 offline probes (safety, web, TUI, model, skills)
+benchmark/             measurement suite: offline (Tier A) + live (Tier B)
 ```
 
 > The harness' own state lives in `~/.harness/` (or `$HARNESS_HOME`), never in
@@ -374,10 +375,59 @@ Everything is an offline probe — no model server needed:
 .venv/bin/python test/test_tui_scroll.py    #  9  the view never jumps while streaming
 .venv/bin/python test/test_tui_stream.py    #  5  a streamed answer reads like a finished one
 .venv/bin/python test/test_model_skills.py  # 47  the machine-wide model, endpoints, skills
+.venv/bin/python test/test_truncation.py    # 10  a cut-off answer is visible
 ```
 
 The last two are regression tests: they fail on the code before the fix (98
 lines painted above the end of the chat; a 61 ms flush instead of 2 ms).
+
+## Benchmark
+
+`benchmark/` measures the harness itself. The split is not arbitrary — it
+falls out of one fact about the code: **`llm.py` is the only file that
+talks to the model**. Replace that one object with a script and the whole
+harness runs offline, deterministically, in milliseconds.
+
+```bash
+.venv/bin/python benchmark/run_all.py --offline   # Tier A — no server, seconds
+.venv/bin/python benchmark/run_all.py --live      # Tier B — needs the endpoint
+.venv/bin/python benchmark/bench_agent.py --repeat 2
+```
+
+| Suite | Tier | What it measures |
+|---|---|---|
+| `bench_safety` | A | the permission gate as a confusion matrix over 62 labelled commands |
+| `bench_tools` | A | tool latency, output caps, the path jail, secret refusal, env scrubbing |
+| `bench_context` | A | prune/compact behaviour, the head/middle/tail split, the request replay |
+| `bench_sessions` | A | write-through, resume, archive-not-delete, search scaling |
+| `bench_loop` | A | harness overhead per turn and the protocol invariants |
+| `bench_model` | B | TTFT, throughput, truncation, token-estimator accuracy, prefill scaling |
+| `bench_agent` | B | the whole agent on real tasks, scored by programmatic checkers |
+| `bench_parallel` | B | whether the endpoint really serves requests concurrently |
+
+Measured on `k2-horizon-mova-36b-a4b` (36B MoE, 2x T4):
+
+- **the harness is free next to the model** — 0.22 ms of harness time per
+  turn, against 3–9 s per model turn
+- **the agent's cost is prefill** — 4.1 s to the first answer token at
+  741 prompt tokens, 28 s at 18 k, **74.9 s at 35 k**
+- **the model reasons before answering** — the first token arrives at
+  ~0.9 s but the first *answer* token at 1.2–5.8 s
+
+Three real defects came out of it (details and the evidence in
+[benchmark/README.md](benchmark/README.md)):
+
+1. `llm.py` never reads `finish_reason`, and `max_tokens` was hardcoded at
+   4096 — **2 of 3 realistic coding turns were silently truncated**
+2. `context.tokens()` assumes 4 chars = 1 token, but **code is really
+   ~1.64x denser** than that, so compaction fires ~40 % too late
+3. the hardline blocklist has **five escapes** (`rm -rf ~/`, `rm -r -f /`,
+   `rm --recursive --force /`, …) that run in `auto` mode
+
+The first one is fixed: the output budget is `MAX_TOKENS` (default 16 384,
+clamped to the window), `finish_reason` is read, and a cut-off answer now
+says so in both the CLI and the TUI. The other two are reported, with the
+fixes outlined in [benchmark/README.md](benchmark/README.md).
 
 ## How it works (30 seconds)
 

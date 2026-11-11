@@ -1,0 +1,158 @@
+{
+  "suite": "parallel",
+  "server": {
+    "base_url": "https://small-present-educated-believe.trycloudflare.com/v1",
+    "model": "k2-horizon-mova-36b-a4b:latest",
+    "host": "small-present-educated-believe.trycloudflare.com",
+    "python": "3.14.4",
+    "cpu_count": 12
+  },
+  "parallelism": {
+    "1": {
+      "wall_s": 27.764,
+      "per_request_s": {
+        "n": 1,
+        "min": 27.7637,
+        "p50": 27.7637,
+        "p95": 27.7637,
+        "max": 27.7637,
+        "mean": 27.7637,
+        "total": 27.7637
+      },
+      "ttft_ms": {
+        "n": 0
+      },
+      "total_tokens": 1024,
+      "speedup_vs_serial": 1.0,
+      "errors": 0
+    },
+    "2": {
+      "wall_s": 49.654,
+      "per_request_s": {
+        "n": 2,
+        "min": 25.341931,
+        "p50": 37.497735,
+        "p95": 49.65354,
+        "max": 49.65354,
+        "mean": 37.497735,
+        "total": 74.995471
+      },
+      "ttft_ms": {
+        "n": 0
+      },
+      "total_tokens": 2048,
+      "speedup_vs_serial": 1.118,
+      "errors": 0
+    },
+    "3": {
+      "wall_s": 69.244,
+      "per_request_s": {
+        "n": 3,
+        "min": 25.165752,
+        "p50": 49.612843,
+        "p95": 69.243482,
+        "max": 69.243482,
+        "mean": 48.007359,
+        "total": 144.022077
+      },
+      "ttft_ms": {
+        "n": 1,
+        "min": 60801.206294,
+        "p50": 60801.206294,
+        "p95": 60801.206294,
+        "max": 60801.206294,
+        "mean": 60801.206294,
+        "total": 60801.206294
+      },
+      "total_tokens": 2877,
+      "speedup_vs_serial": 1.203,
+      "errors": 0
+    },
+    "4": {
+      "wall_s": 93.84,
+      "per_request_s": {
+        "n": 4,
+        "min": 25.135674,
+        "p50": 58.503783,
+        "p95": 93.837673,
+        "max": 93.837673,
+        "mean": 58.995228,
+        "total": 235.980912
+      },
+      "ttft_ms": {
+        "n": 2,
+        "min": 37878.051099,
+        "p50": 49292.960698,
+        "p95": 60707.870298,
+        "max": 60707.870298,
+        "mean": 49292.960698,
+        "total": 98585.921397
+      },
+      "total_tokens": 3912,
+      "speedup_vs_serial": 1.183,
+      "errors": 0
+    },
+    "8": {
+      "wall_s": 296.195,
+      "per_request_s": {
+        "n": 8,
+        "min": 25.225174,
+        "p50": 110.511544,
+        "p95": 296.189035,
+        "max": 296.189035,
+        "mean": 135.594807,
+        "total": 1084.758454
+      },
+      "ttft_ms": {
+        "n": 1,
+        "min": 67872.774366,
+        "p50": 67872.774366,
+        "p95": 67872.774366,
+        "max": 67872.774366,
+        "mean": 67872.774366,
+        "total": 67872.774366
+      },
+      "total_tokens": 8192,
+      "speedup_vs_serial": 0.75,
+      "errors": 0
+    }
+  },
+  "delegate": {
+    "wall_s": 65.622,
+    "sum_individual_s": 131.89,
+    "requests": [
+      {
+        "index": 101,
+        "wall_s": 24.99001316199974,
+        "ttft_ms": 22768.55505200001,
+        "chars": 454,
+        "tokens": 1024,
+        "finish": "length"
+      },
+      {
+        "index": 100,
+        "wall_s": 41.27965181900072,
+        "ttft_ms": 34578.38758900107,
+        "chars": 1107,
+        "tokens": 692,
+        "finish": "stop"
+      },
+      {
+        "index": 102,
+        "wall_s": 65.61997761400016,
+        "ttft_ms": null,
+        "chars": 0,
+        "tokens": 1024,
+        "finish": "length"
+      }
+    ]
+  },
+  "report": {
+    "title": "parallelism",
+    "passed": 1,
+    "failed": 0,
+    "total": 1,
+    "pass_rate": 100.0,
+    "failures": []
+  }
+}

@@ -210,6 +210,9 @@ class HarnessApp(App[None]):
             self._on_approval(event)
         elif isinstance(event, TurnDone):
             await self._on_done(event.content)
+            if getattr(event, "truncated", False):
+                self._note("the answer was cut off by the output budget "
+                           "(raise MAX_TOKENS in .env)")
         elif isinstance(event, TurnError):
             self._note(f"error: {event.message}")
         elif isinstance(event, TurnEnd):

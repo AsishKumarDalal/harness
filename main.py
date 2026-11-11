@@ -199,6 +199,12 @@ def agent(user_msg: str) -> str:
             print(f"{R}", flush=True)                         # reset dim/italic
         printer.flush()
         convo.add_assistant(reply)
+        if getattr(reply, "truncated", False):
+            # the answer hit the output budget — say so instead of letting
+            # a half-finished answer look like a complete one
+            print(f"{D}  [the answer was cut off by the output budget "
+                  f"(max_tokens={config.MAX_TOKENS}) — raise MAX_TOKENS in .env "
+                  f"or ask for less]{R}", flush=True)
         if reply.tool_calls:
             calls = reply.tool_calls
             for tool in calls:                 # show every call BEFORE running
