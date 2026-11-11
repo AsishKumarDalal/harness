@@ -6,8 +6,9 @@
 
 <p align="center">
   <strong>A small, complete agentic coding CLI</strong> — Claude Code shape, Python body.<br>
-  ~2600 lines of core, ~2100 more for the Textual TUI, one OpenAI-compatible model
-  endpoint. Built phase by phase with Hermes-agent as the reference design.
+  ~2700 lines of core, ~2100 more for the Textual TUI, one OpenAI-compatible model
+  endpoint. Built phase by phase with Hermes-agent as the reference design,<br>
+  and measured by the benchmark suite in <code>benchmark/</code>.
 </p>
 
 <p align="center">
@@ -21,6 +22,37 @@
 </p>
 
 <p align="center"><em>The harness TUI, mid-turn: streaming markdown, a tool call and a coloured diff.</em></p>
+
+## The numbers
+
+Measured on a 36B MoE served on 2x T4. Everything here is reproducible
+with `benchmark/` — the full report with the raw numbers is in
+[benchmark/README.md](benchmark/README.md).
+
+| Measure | Result |
+|---|---|
+| **Real coding tasks solved** | **10 / 10** |
+| **Harness overhead per turn** | **0.22 ms** — the model takes 3–9 s, the harness a fifth of a millisecond |
+| **Time to the first answer** | 4 s at 741 prompt tokens → 28 s at 18 k → **75 s at 35 k** |
+| **Two tasks in parallel** | the server saturates at ~41 tok/s, so `delegate` buys ~1.2x, not 3x |
+
+The five tasks are real ones — fix a bug, add a `--verbose` flag, write
+tests, rename a function across three files, read the code and explain
+it — and each one is checked by a script, not by a human.
+
+**Three bugs the benchmarks found** (one already fixed):
+
+1. **Truncated answers were invisible.** The output budget was hardcoded
+   at 4096 tokens and `finish_reason` was never read, so **2 of 3** real
+   coding turns were silently cut off — one of them returned an *empty*
+   answer and the harness carried on as if it had worked.
+   *Fixed: the budget is now `MAX_TOKENS` (16 384) and the CLI and TUI
+   both say when an answer was cut off.*
+2. **The context estimate is ~40 % off for code.** `context.tokens()`
+   assumes 4 characters = 1 token, but code is really **1.64x** denser,
+   so compaction starts too late.
+3. **The hardline blocklist has five escapes.** `rm -rf ~/`, `rm -r -f /`
+   and friends are not blocked, and they run in `auto` mode.
 
 ## Features
 
@@ -378,8 +410,9 @@ Everything is an offline probe — no model server needed:
 .venv/bin/python test/test_truncation.py    # 10  a cut-off answer is visible
 ```
 
-The last two are regression tests: they fail on the code before the fix (98
-lines painted above the end of the chat; a 61 ms flush instead of 2 ms).
+The last three are regression tests: they fail on the code before the fix (98
+lines painted above the end of the chat; a 61 ms flush instead of 2 ms; a
+truncated answer that looked like a finished one).
 
 ## Benchmark
 
@@ -405,29 +438,11 @@ harness runs offline, deterministically, in milliseconds.
 | `bench_agent` | B | the whole agent on real tasks, scored by programmatic checkers |
 | `bench_parallel` | B | whether the endpoint really serves requests concurrently |
 
-Measured on `k2-horizon-mova-36b-a4b` (36B MoE, 2x T4):
+Tier A needs no server and finishes in about three seconds, so it can
+guard a pull request. Tier B needs the endpoint and takes minutes.
 
-- **the harness is free next to the model** — 0.22 ms of harness time per
-  turn, against 3–9 s per model turn
-- **the agent's cost is prefill** — 4.1 s to the first answer token at
-  741 prompt tokens, 28 s at 18 k, **74.9 s at 35 k**
-- **the model reasons before answering** — the first token arrives at
-  ~0.9 s but the first *answer* token at 1.2–5.8 s
-
-Three real defects came out of it (details and the evidence in
-[benchmark/README.md](benchmark/README.md)):
-
-1. `llm.py` never reads `finish_reason`, and `max_tokens` was hardcoded at
-   4096 — **2 of 3 realistic coding turns were silently truncated**
-2. `context.tokens()` assumes 4 chars = 1 token, but **code is really
-   ~1.64x denser** than that, so compaction fires ~40 % too late
-3. the hardline blocklist has **five escapes** (`rm -rf ~/`, `rm -r -f /`,
-   `rm --recursive --force /`, …) that run in `auto` mode
-
-The first one is fixed: the output budget is `MAX_TOKENS` (default 16 384,
-clamped to the window), `finish_reason` is read, and a cut-off answer now
-says so in both the CLI and the TUI. The other two are reported, with the
-fixes outlined in [benchmark/README.md](benchmark/README.md).
+The results, the evidence and the fixes for the three defects listed at
+the top of this file are in **[benchmark/README.md](benchmark/README.md)**.
 
 ## How it works (30 seconds)
 
