@@ -1,15 +1,15 @@
 {
   "suite": "loop",
   "overhead": {
-    "total_ms": 1.2662410008488223,
-    "tool_ms": 0.41652000072645023,
-    "db_ms": 0.43275800453557167,
-    "other_ms": 0.4169629955868004,
+    "total_ms": 0.8773030000384097,
+    "tool_ms": 0.3505509999968126,
+    "db_ms": 0.16184800006158184,
+    "other_ms": 0.3649039999800152,
     "turns": 4,
-    "per_turn_ms": 0.3165602502122056
+    "per_turn_ms": 0.21932575000960242
   },
   "call_order": {
-    "wall_clock": 1.2067536390004534,
+    "wall_clock": 1.2085338439999305,
     "order": [
       "FIRST",
       "SECOND",
@@ -19,7 +19,7 @@
   },
   "error_recovery": {
     "results": [
-      "Error: [Errno 2] No such file or directory: '/tmp/hbench-loop-apgc0phk/project/does-not-exist.txt'",
+      "Error: [Errno 2] No such file or directory: '/tmp/hbench-loop-ddqt83ge/project/does-not-exist.txt'",
       "[exit=3]"
     ]
   },

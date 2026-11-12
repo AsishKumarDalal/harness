@@ -36,22 +36,6 @@ with `benchmark/` — the full report with the raw numbers is in
 | **Two tasks in parallel** | the server saturates at ~41 tok/s, so `delegate` buys ~1.2x, not 3x |
 | **Safety gate** | **69 / 69** commands classified correctly, 0 false negatives |
 
-**Three bugs the benchmarks found — all three are fixed now:**
-
-1. **Truncated answers were invisible.** The output budget was hardcoded
-   at 4096 tokens and `finish_reason` was never read, so **2 of 3** real
-   coding turns were silently cut off — one of them returned an *empty*
-   answer and the harness carried on as if it had worked.
-   *Now: the budget is `MAX_TOKENS` (16 384) and the CLI and TUI both
-   say when an answer was cut off.*
-2. **The context estimate was ~40 % off for code.** `context.tokens()`
-   assumed 4 characters = 1 token, but code is really **1.64x** denser,
-   so compaction started too late.
-   *Now: the estimate is content-aware and never under-counts.*
-3. **The hardline blocklist had five escapes.** `rm -rf ~/`, `rm -r -f /`
-   and friends were not blocked, and they ran in `auto` mode.
-   *Now: the `rm` arguments are parsed, so every spelling is caught.*
-
 ## Features
 
 - **Agent loop** with tool calling, 20-turn cap, automatic error recovery

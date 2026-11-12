@@ -124,8 +124,13 @@ def test_endpoints(root: Path) -> None:
         check("llm uses the saved key", api_key == "sk-test")
 
         default_url, default_key = llm.endpoint_for("some-other-model")
+        # endpoint_for() normalises an empty key to None, so compare with
+        # the same normalisation — otherwise this fails on a machine (or
+        # in CI) that has no API key configured.
         check("other models use the default endpoint",
-              default_url == config.BASE_URL and default_key == config.API_KEY)
+              default_url == config.BASE_URL
+              and default_key == (config.API_KEY or None),
+              f"-> {default_url} / {default_key!r}")
 
         check("the provider's models are known",
               "gpt-4o-mini" in config.provider_models())
