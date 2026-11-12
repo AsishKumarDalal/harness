@@ -115,10 +115,7 @@ def describe():
 # ---------------------------------------------------------------------------
 
 _HARDLINE = [
-    (r"\brm\s+-[a-z]*r[a-z]*f[a-z]*\s+/(?:\s|$|\*)", "recursive delete of /"),
-    (r"\brm\s+-[a-z]*f[a-z]*r[a-z]*\s+/(?:\s|$|\*)", "recursive delete of /"),
     (r"--no-preserve-root", "rm --no-preserve-root"),
-    (r"\brm\s+-[a-z]*r[a-z]*f[a-z]*\s+(~|\$HOME)(?:\s|$)", "recursive delete of home"),
     (r":\(\)\s*\{.*\};\s*:", "fork bomb"),
     (r"\bdd\b[^\n]*\bof=/dev/(sd|hd|nvme|vd)", "raw disk write"),
     (r"\bmkfs(\.\w+)?\b", "format a filesystem"),
@@ -129,11 +126,78 @@ _HARDLINE = [
 _HARDLINE_RE = [(re.compile(p, re.I), why) for p, why in _HARDLINE]
 
 
+def _rm_targets(part: str):
+    """The targets of one `rm` command, with its flags parsed.
+
+    Returns (recursive, force, targets). The old regexes assumed the
+    flags were bundled (-rf) and that the target was followed by a space
+    or the end of the string, so `rm -rf ~/`, `rm -r -f /` and
+    `rm --recursive --force /` all slipped through. Parsing the argv
+    catches every spelling.
+    """
+    try:
+        argv = shlex.split(part)
+    except ValueError:
+        return False, False, []
+    if not argv:
+        return False, False, []
+    if os.path.basename(argv[0]) != "rm":
+        return False, False, []
+    recursive = force = False
+    targets = []
+    for tok in argv[1:]:
+        if tok == "--":
+            continue
+        if tok.startswith("--"):
+            if tok == "--recursive":
+                recursive = True
+            elif tok == "--force":
+                force = True
+            else:
+                targets.append(tok)          # unknown long flag: treat as a target
+        elif tok.startswith("-") and len(tok) > 1:
+            letters = tok[1:]
+            if "r" in letters or "R" in letters:
+                recursive = True
+            if "f" in letters:
+                force = True
+        else:
+            targets.append(tok)
+    return recursive, force, targets
+
+
+# A blunt fallback for a command we cannot parse (unbalanced quotes):
+# `rm` with any force+recursive flags aimed at / or a home directory.
+_RM_FALLBACK = re.compile(
+    r"\brm\b(?:\s+-{1,2}[a-zA-Z-]+)*\s+(?:/|/\*|~|~/\*|\$HOME)(?:\s|$|\*)", re.I)
+
+
+def _rm_wipes_root(command: str):
+    """Would this command delete / or a home directory? Say why."""
+    for part in split_compounds(command):
+        recursive, force, targets = _rm_targets(part)
+        if not (recursive and force):
+            if _RM_FALLBACK.search(part):
+                return "recursive delete of / or a home directory"
+            continue
+        for t in targets:
+            if t == "/" or t.startswith("/*"):
+                return "recursive delete of /"
+            if t == "~" or t.startswith("~/"):
+                return "recursive delete of home"
+            if t == "$HOME" or t.startswith("$HOME/") or t.startswith("${HOME}"):
+                return "recursive delete of home"
+    return None
+
+
 def hardline(command: str):
     flat = " ".join(command.split())
     for rx, why in _HARDLINE_RE:
         if rx.search(flat):
             return f"BLOCKED (hardline): {why}. This command can never run."
+    why = _rm_wipes_root(flat)
+    if why:
+        return f"BLOCKED (hardline): {why}. This command can never run."
     return None
 
 
@@ -204,9 +268,25 @@ def _read_paths_ok(tokens) -> bool:
     return True
 
 
-def is_readonly_part(part: str) -> bool:
-    if any(x in part for x in ("$(", "`", ">", "<")):
+def _redirects_only_to_devnull(part: str) -> bool:
+    """Does every redirect in this part go to /dev/null (or stdout/stderr)?
+
+    The redirect guard allows those targets (safety.py:_check_target),
+    so `ls > /dev/null` is a read and must not ask.
+    """
+    targets = [m.group(2) for m in _REDIRECT.finditer(part)]
+    if not targets:
         return False
+    return all(t in ("/dev/null", "/dev/stdout", "/dev/stderr") for t in targets)
+
+
+def is_readonly_part(part: str) -> bool:
+    if any(x in part for x in ("$(", "`")):
+        return False
+    if ">" in part or "<" in part:
+        # a redirect is a write — unless it only throws the output away
+        if not _redirects_only_to_devnull(part):
+            return False
     try:
         tokens = shlex.split(part)
     except ValueError:

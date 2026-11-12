@@ -1,0 +1,53 @@
+name: benchmarks
+
+# The offline half of the benchmark suite (benchmark/run_all.py --offline)
+# needs no model server: llm.py is the only file that talks to the model,
+# so the suite swaps that one object for a script and the whole harness
+# runs in about three seconds. That makes it cheap enough to guard every
+# pull request.
+#
+# The live half (Tier B) needs a model endpoint, so it is not run here —
+# run it locally with:  .venv/bin/python benchmark/run_all.py --live
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -r requirements.txt
+
+      - name: benchmarks (offline)
+        run: .venv/bin/python benchmark/run_all.py --offline
+
+      - name: unit probes
+        run: |
+          for t in test/test_safety.py test/test_web.py test/test_model_skills.py \
+                   test/test_truncation.py test/test_tokens.py; do
+            .venv/bin/python "$t" || exit 1
+          done
+
+      - name: task checkers are strict and satisfiable
+        run: .venv/bin/python benchmark/test_tasks.py
+
+      - name: keep the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark/results/
+          if-no-files-found: ignore

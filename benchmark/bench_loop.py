@@ -24,7 +24,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import Sandbox, Tally, banner, hr, record, save_report, use_sandbox  # noqa: E402
+from common import (Sandbox, Tally, banner, finish, hr, record,  # noqa: E402
+                    save_report, use_sandbox)
 
 import config  # noqa: E402
 import fake_model  # noqa: E402
@@ -225,7 +226,7 @@ def run():
                    "error_recovery": errors, "max_turns": turns, "report": report}
         save_report("loop", payload)
         record("loop", payload)
-        return payload
+        finish(payload)
 
 
 if __name__ == "__main__":

@@ -37,9 +37,39 @@ def redact(text) -> str:
 # ------------------------------------------------------------------
 
 def tokens(text) -> int:
-    """Rule of thumb: 4 characters = 1 token. Accurate enough for an alarm."""
-    n = len(str(text or "")) // 4
-    return n if n > 0 else 1
+    """Rule of thumb for the token count.
+
+    Measured against the server's own prompt_tokens: ordinary prose is
+    ~4.3-4.8 characters per token, but source code and JSON are only
+    ~2.4. A flat "4 characters = 1 token" therefore UNDER-counted code
+    by 40%, which made the compaction thresholds fire far too late.
+
+    So the estimate is content-aware, and deliberately a little
+    pessimistic: over-counting only costs a little context, while
+    under-counting overflows the model's window.
+    """
+    s = str(text or "")
+    if not s:
+        return 1
+    n = len(s)
+    if _looks_like_code(s):
+        return max(1, n // 2)      # code/JSON measured at ~2.4 chars/token
+    return max(1, n // 4)          # prose measured at ~4.3-4.8 chars/token
+
+
+_CODE_HINT = re.compile(r"^\s*(def|class|import|from|return|if|for|while|try|"
+                        r"async|@|#include|package|func|fn|let|const)\b", re.M)
+
+
+def _looks_like_code(s: str) -> bool:
+    """Is this text source code or JSON rather than prose?"""
+    sample = s[:4000]
+    if not sample:
+        return False
+    symbols = sum(sample.count(c) for c in "{}[]()<>;=")
+    if len(sample) and symbols / len(sample) > 0.02:
+        return True
+    return bool(_CODE_HINT.search(sample))
 
 
 def history_tokens(history: list) -> int:

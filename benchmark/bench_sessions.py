@@ -21,8 +21,8 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import (Sandbox, Tally, banner, hr, record, save_report,  # noqa: E402
-                    stats, use_sandbox)
+from common import (Sandbox, Tally, banner, finish, hr, record,  # noqa: E402
+                    save_report, stats, use_sandbox)
 
 import config  # noqa: E402
 import sessions  # noqa: E402
@@ -156,7 +156,7 @@ def main():
                    "report": report}
         save_report("sessions", payload)
         record("sessions", payload)
-        return payload
+        finish(payload)
 
 
 if __name__ == "__main__":

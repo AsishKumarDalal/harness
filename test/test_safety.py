@@ -47,6 +47,19 @@ for cmd in ("rm -rf build", "git push origin main", "cat /etc/passwd",
             "cd /tmp && ls", "git status && rm -rf build"):
     check(f"asks {cmd}", safety.is_readonly(cmd), False)
 
+# --- hardline floor: every spelling of a catastrophic rm ----------------
+# The old regexes assumed bundled flags (-rf) and a target followed by a
+# space or the end of the string, so `rm -rf ~/`, `rm -r -f /` and
+# `rm --recursive --force /` all slipped through and ran in auto mode.
+for cmd in ("rm -rf /", "rm -rf /*", "rm -rf ~", "rm -rf ~/", "rm -rf ~/*",
+            "rm -rf $HOME", "rm -rf $HOME/", "rm -r -f /", "rm -fr /",
+            "rm --recursive --force /", "rm --force --recursive /",
+            "sudo rm -rf /", "echo hi && rm -rf /"):
+    check(f"hardline {cmd}", safety.hardline(cmd) is not None, True)
+for cmd in ("rm -rf build", "rm -rf /home/user", "rm -rf ./dist",
+            "rm -rf node_modules", "rm file.txt"):
+    check(f"not hardline {cmd}", safety.hardline(cmd) is None, True)
+
 # --- redirects + secrets ---------------------------------------------------
 check("redirect /etc", safety.command_guard("echo x > /etc/passwd") is not None, True)
 check("redirect ~/", safety.command_guard("echo x > ~/evil") is not None, True)
@@ -57,6 +70,10 @@ check("env-file=.env", safety.command_guard("python --env-file=.env app.py") is 
 check(".env.example allowed", safety.command_guard("cat .env.example") is None, True)
 check("secret .pem", safety.is_secret_path("certs/server.pem"), True)
 check("secret .ssh", safety.is_secret_path("home/.ssh/id_rsa"), True)
+
+# --- a redirect to /dev/null is a read, not a write ----------------------
+check("ls > /dev/null is read-only", safety.is_readonly("ls > /dev/null"), True)
+check("ls > out.txt is a write", safety.is_readonly("ls > out.txt"), False)
 
 # --- env scrub -------------------------------------------------------------
 env = safety.safe_env()

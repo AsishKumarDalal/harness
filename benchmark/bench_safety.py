@@ -30,7 +30,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import Sandbox, Tally, banner, hr, record, save_report, use_sandbox  # noqa: E402
+from common import (Sandbox, Tally, banner, finish, hr, record,  # noqa: E402
+                    save_report, use_sandbox)
 
 import safety  # noqa: E402
 
@@ -195,7 +196,7 @@ def main():
         path = save_report("safety", payload)
         record("safety", payload)
         print("report:", path)
-        return payload
+        finish(payload)
 
 
 if __name__ == "__main__":

@@ -31,28 +31,26 @@ with `benchmark/` — the full report with the raw numbers is in
 
 | Measure | Result |
 |---|---|
-| **Real coding tasks solved** | **10 / 10** |
 | **Harness overhead per turn** | **0.22 ms** — the model takes 3–9 s, the harness a fifth of a millisecond |
 | **Time to the first answer** | 4 s at 741 prompt tokens → 28 s at 18 k → **75 s at 35 k** |
 | **Two tasks in parallel** | the server saturates at ~41 tok/s, so `delegate` buys ~1.2x, not 3x |
+| **Safety gate** | **69 / 69** commands classified correctly, 0 false negatives |
 
-The five tasks are real ones — fix a bug, add a `--verbose` flag, write
-tests, rename a function across three files, read the code and explain
-it — and each one is checked by a script, not by a human.
-
-**Three bugs the benchmarks found** (one already fixed):
+**Three bugs the benchmarks found — all three are fixed now:**
 
 1. **Truncated answers were invisible.** The output budget was hardcoded
    at 4096 tokens and `finish_reason` was never read, so **2 of 3** real
    coding turns were silently cut off — one of them returned an *empty*
    answer and the harness carried on as if it had worked.
-   *Fixed: the budget is now `MAX_TOKENS` (16 384) and the CLI and TUI
-   both say when an answer was cut off.*
-2. **The context estimate is ~40 % off for code.** `context.tokens()`
-   assumes 4 characters = 1 token, but code is really **1.64x** denser,
-   so compaction starts too late.
-3. **The hardline blocklist has five escapes.** `rm -rf ~/`, `rm -r -f /`
-   and friends are not blocked, and they run in `auto` mode.
+   *Now: the budget is `MAX_TOKENS` (16 384) and the CLI and TUI both
+   say when an answer was cut off.*
+2. **The context estimate was ~40 % off for code.** `context.tokens()`
+   assumed 4 characters = 1 token, but code is really **1.64x** denser,
+   so compaction started too late.
+   *Now: the estimate is content-aware and never under-counts.*
+3. **The hardline blocklist had five escapes.** `rm -rf ~/`, `rm -r -f /`
+   and friends were not blocked, and they ran in `auto` mode.
+   *Now: the `rm` arguments are parsed, so every spelling is caught.*
 
 ## Features
 
@@ -399,7 +397,7 @@ benchmark/             measurement suite: offline (Tier A) + live (Tier B)
 Everything is an offline probe — no model server needed:
 
 ```bash
-.venv/bin/python test/test_safety.py        # 39  the permission gate
+.venv/bin/python test/test_safety.py        # 59  the permission gate
 .venv/bin/python test/test_web.py           # 26  the internet tools + SSRF guards
 .venv/bin/python test/test_tui_commands.py  # 25  slash commands, palette, sessions
 .venv/bin/python test/test_tui_layout.py    #  8  wrapping, never cut at the right
@@ -408,11 +406,13 @@ Everything is an offline probe — no model server needed:
 .venv/bin/python test/test_tui_stream.py    #  5  a streamed answer reads like a finished one
 .venv/bin/python test/test_model_skills.py  # 47  the machine-wide model, endpoints, skills
 .venv/bin/python test/test_truncation.py    # 10  a cut-off answer is visible
+.venv/bin/python test/test_tokens.py        # 13  the token estimate never under-counts
 ```
 
 The last three are regression tests: they fail on the code before the fix (98
 lines painted above the end of the chat; a 61 ms flush instead of 2 ms; a
-truncated answer that looked like a finished one).
+truncated answer that looked like a finished one; a token estimate that was
+40 % short for code).
 
 ## Benchmark
 

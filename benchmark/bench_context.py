@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import Sandbox, Tally, banner, hr, record, save_report, use_sandbox  # noqa: E402
+from common import (Sandbox, Tally, banner, finish, hr, record,  # noqa: E402
+                    save_report, use_sandbox)
 
 import config  # noqa: E402
 import context as ctx  # noqa: E402
@@ -221,7 +222,7 @@ def main():
                    "triggers": triggers, "report": report}
         save_report("context", payload)
         record("context", payload)
-        return payload
+        finish(payload)
 
 
 if __name__ == "__main__":

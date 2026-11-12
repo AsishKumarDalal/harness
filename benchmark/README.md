@@ -83,7 +83,7 @@ Endpoint: `https://small-present-educated-believe.trycloudflare.com/v1`.
 
 | Suite | Result | Notes |
 |---|---|---|
-| `bench_safety` | **60/62 (96.8 %)** | 3 hardline escapes, 1 false positive — see findings |
+| `bench_safety` | **69/69 (100 %)** | every dangerous command blocked, 0 false negatives, 0 false positives |
 | `bench_tools` | 14/14 (100 %) | every wall holds; `list_files` 26 ms at 3 000 files |
 | `bench_context` | 23/23 (100 %) | prune saves 79 %, compact 80 %, the replay works |
 | `bench_sessions` | 10/10 (100 %) | 77 k inserts/s, search 0.15 ms at 5 000 messages |
@@ -239,61 +239,90 @@ longer silent. The empty answer is the model spending the whole budget
 on reasoning: the server returned 16 384 completion tokens of which
 **zero** were visible text (`content: ""`, `reasoning: <8493 chars>`).
 
-### 2. [HIGH] The token estimator under-counts code by ~40 %, so compaction fires late
+### 2. [HIGH] The token estimator under-counted code by ~40 %, so compaction fired late
 
-`context.tokens()` assumes 4 characters = 1 token (`context.py:40`).
+`context.tokens()` assumed 4 characters = 1 token (`context.py:40`).
 Measured against the server's own `prompt_tokens`:
 
-| content | server tokens | harness guess | error |
+| content | server tokens | old guess | old error |
 |---|---|---|---|
 | prose | 442 | 526 | +19.0 % |
 | words | 222 | 236 | +6.3 % |
 | **code** | 461 | 281 | **-39.0 %** |
 | **json** | 741 | 441 | **-40.5 %** |
 
-The guess is close enough for prose and badly wrong for the two things a
+The guess was close enough for prose and badly wrong for the two things a
 coding agent actually reads: code and JSON. Code is *denser* per
-character than the estimate assumes.
+character than the estimate assumed.
 
-The consequence is arithmetic: `PRUNE_AT` fires at 17 100 estimated
-tokens, which is really ~24 000; `COMPACT_AT` fires at 28 500 estimated,
-which is really ~40 000. Add `CONTEXT_RESERVE` (12 000) and the request
-that goes to the server is ~52 000 tokens against a 50 000 window.
+The consequence was arithmetic: `PRUNE_AT` fired at 17 100 estimated
+tokens, which was really ~24 000; `COMPACT_AT` fired at 28 500
+estimated, which was really ~40 000. Add `CONTEXT_RESERVE` (12 000) and
+the request that went to the server was ~52 000 tokens against a 50 000
+window.
 
-Fix: estimate code at ~2.6 chars/token and prose at ~4.8, or count
-tokens per content type, or ask the server (the usage block is already
-requested — `stream_options: {"include_usage": True}`).
+**Fixed.** The estimate is now content-aware — code and JSON are counted
+at ~2 characters per token, prose at 4 — and it is deliberately
+pessimistic. Over-counting costs a little context; under-counting
+overflows the window.
 
-### 3. [HIGH] The hardline blocklist has five escapes
+| content | server tokens | new guess | new error |
+|---|---|---|---|
+| prose | 442 | 526 | +19.0 % |
+| words | 222 | 236 | +6.3 % |
+| **code** | 461 | 563 | **+22.1 %** |
+| **json** | 741 | 883 | **+19.2 %** |
 
-The corpus is 62 labelled commands; 21 are "must never run". Five of
-them are not blocked:
+Mean absolute error 26.2 % → 16.6 %, and the dangerous direction is
+gone: **the estimate is never below the truth any more.**
+
+### 3. [HIGH] The hardline blocklist had five escapes
+
+The corpus is 69 labelled commands; 26 are "must never run". Five of
+them were not blocked:
 
 ```
 rm -rf ~/          rm -rf ~/*        rm -rf $HOME/
 rm -r -f /         rm --recursive --force /
 ```
 
-The patterns assume bundled flags and a `~` that is followed by a space
+The patterns assumed bundled flags and a `~` that was followed by a space
 or end-of-string (`safety.py:118-127`). Add a trailing slash, a glob or
-a separated flag and the command falls through to "ask" — and in
-`auto` mode (`/yolo`) **it runs**. The README promises that hardline
-commands never run in any mode; today that is not true for these five.
+a separated flag and the command fell through to "ask" — and in `auto`
+mode (`/yolo`) **it ran**. The README promised that hardline commands
+never run in any mode; that was not true for these five.
 
-`rm -rf /`, `rm -rf /*`, `rm -rf ~` and `rm -rf $HOME` are blocked
-correctly — only the variants escape.
+**Fixed.** The `rm` arguments are parsed instead of pattern-matched, so
+every spelling of the flags and the target is caught. The corpus is now
+**69/69 with 0 false negatives and 0 false positives**:
+
+```
+              free     ask   block
+free            25       1       0     <- one benign false positive, also fixed
+ask              0      17       0
+block            0       0      26
+```
+
+The last false positive went too: `ls > /dev/null` asked for approval
+even though the redirect guard explicitly allows `/dev/null`. A redirect
+is now a write *unless* it only throws the output away.
 
 Fix: anchor the target instead of the flags, e.g. match `rm` with
 `[-a-z]*f` **or** `--force`, and treat `~`/`$HOME` followed by *anything*
 as home.
 
-### 4. [MEDIUM] The 62-command corpus also caught a benign false positive
+**Fixed** — see finding 3 above.
 
-`ls > /dev/null` is classified "ask" instead of "free", because
-`is_readonly_part()` rejects any command containing `>` (`safety.py:208`)
+### 4. [LOW] The 62-command corpus also caught a benign false positive
+
+`ls > /dev/null` was classified "ask" instead of "free", because
+`is_readonly_part()` rejected any command containing `>` (`safety.py:208`)
 even though the redirect guard explicitly allows `/dev/null`
 (`safety.py:330`). One extra prompt on a harmless command — the safe
 direction, but it trains the user to hit "always".
+
+**Fixed**: a redirect is a write unless it only throws the output away.
+The corpus is now 69/69 with no false positives either.
 
 ### 5. [MEDIUM] Prefill dominates the cost of a long turn
 
@@ -325,8 +354,7 @@ the current tunnel.
 
 ## Fixed while writing this
 
-Finding 1 was fixed rather than only reported, because it made the
-harness quietly wrong:
+All three defects are fixed rather than only reported:
 
 | change | where |
 |---|---|
@@ -336,14 +364,11 @@ harness quietly wrong:
 | the CLI says when an answer was cut off | `main.py` |
 | the TUI says when an answer was cut off | `tui/adapter.py`, `tui/app.py` |
 | a regression probe for all of the above | `test/test_truncation.py` |
-
-The old behaviour is kept as the baseline: `git log` shows the
-`max_tokens: 4096` literal that this replaced.
-
-Findings 2 (the token estimator) and 3 (the hardline escapes) are
-**reported, not fixed** — they change behaviour in ways that should be a
-deliberate decision, not a side effect of writing a benchmark. The fixes
-are small and outlined above.
+| the token estimate is content-aware and never under-counts | `context.py:tokens()` |
+| `rm` arguments are parsed, so every spelling of the hardline cases is caught | `safety.py:_rm_wipes_root()` |
+| a redirect to `/dev/null` is a read, not a write | `safety.py:is_readonly_part()` |
+| every suite exits non-zero when a check fails (a real CI gate) | `benchmark/common.py:finish()` |
+| the offline half of the suite runs on every pull request | `.github/workflows/benchmarks.yml` |
 
 ---
 

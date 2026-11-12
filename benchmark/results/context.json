@@ -1,9 +1,9 @@
 {
   "suite": "context",
   "prune": {
-    "before": 30849,
-    "after": 10073,
-    "saved_pct": 67.3
+    "before": 31289,
+    "after": 10751,
+    "saved_pct": 65.6
   },
   "split": {
     "head": 4,
@@ -11,8 +11,8 @@
     "tail": 6
   },
   "compact": {
-    "before": 30849,
-    "after": 6244,
+    "before": 31289,
+    "after": 6332,
     "saved_pct": 79.8,
     "request_survives": true,
     "request_replayed": false

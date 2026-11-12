@@ -5,6 +5,10 @@
   Tier B (live, needs the endpoint):
       model      agent     parallel
 
+Each suite runs as its own process (so one broken suite cannot take the
+others down, and the exit codes are real), and exits non-zero when a
+check fails — which is what makes this usable as a CI gate.
+
 Usage:
     .venv/bin/python benchmark/run_all.py            # everything
     .venv/bin/python benchmark/run_all.py --offline  # only Tier A
@@ -16,15 +20,13 @@ can be compared over time.
 """
 
 import argparse
-import importlib
+import subprocess
 import sys
 import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))
-
-from common import banner, hr  # noqa: E402
+ROOT = HERE.parent
 
 OFFLINE = ["bench_safety", "bench_tools", "bench_context", "bench_sessions",
            "bench_loop"]
@@ -32,33 +34,21 @@ LIVE = ["bench_model", "bench_agent", "bench_parallel"]
 
 
 def run(name: str) -> dict:
+    """Run one suite in its own process."""
     t0 = time.perf_counter()
+    cmd = [sys.executable, str(HERE / f"{name}.py")]
     try:
-        mod = importlib.import_module(name)
-        # The entry point is main() in most suites and run() in bench_loop
-        # (which imports the harness' main module, so it cannot bind that
-        # name to a function). Pick whichever is callable.
-        entry = None
-        for attr in ("main", "run"):
-            cand = getattr(mod, attr, None)
-            if callable(cand):
-                entry = cand
-                break
-        if entry is None:
-            raise RuntimeError(f"{name} has no callable entry point")
-        entry()
-        ok = True
-        err = ""
-    except SystemExit:
-        ok = True
-        err = ""
-    except Exception as e:
-        ok = False
-        err = f"{type(e).__name__}: {e}"
-        print(f"!! {name} failed: {err}")
+        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True,
+                              timeout=3600)
+        ok = proc.returncode == 0
+        err = "" if ok else (proc.stdout[-600:] + proc.stderr[-600:])
+    except subprocess.TimeoutExpired:
+        ok, err = False, "timed out"
     dt = time.perf_counter() - t0
-    print(f"[{'ok' if ok else 'FAILED'}] {name} in {dt:.1f}s\n")
-    return {"suite": name, "ok": ok, "seconds": round(dt, 1), "error": err}
+    print(f"[{'ok' if ok else 'FAILED'}] {name} in {dt:.1f}s")
+    if not ok:
+        print(err.strip())
+    return {"suite": name, "ok": ok, "seconds": round(dt, 1), "error": err[:200]}
 
 
 def main():
@@ -78,20 +68,40 @@ def main():
 
     results = []
     for name in suites:
-        banner(f"SUITE: {name}")
+        cmd = [sys.executable, str(HERE / f"{name}.py")]
         if name == "bench_agent":
-            sys.argv = [sys.argv[0], "--repeat", str(args.repeat)]
-        results.append(run(name))
-        hr()
+            cmd += ["--repeat", str(args.repeat)]
+        t0 = time.perf_counter()
+        print("=" * 68)
+        print(f" SUITE: {name}")
+        print("=" * 68)
+        try:
+            proc = subprocess.run(cmd, cwd=ROOT, capture_output=True,
+                                  text=True, timeout=3600)
+            ok = proc.returncode == 0
+            err = "" if ok else (proc.stdout[-800:] + proc.stderr[-400:])
+            if ok:
+                print(proc.stdout.strip()[-1500:])
+        except subprocess.TimeoutExpired:
+            ok, err = False, "timed out"
+        dt = time.perf_counter() - t0
+        print(f"[{'ok' if ok else 'FAILED'}] {name} in {dt:.1f}s\n")
+        results.append({"suite": name, "ok": ok, "seconds": round(dt, 1),
+                        "error": err[:200]})
 
-    banner("SUMMARY")
+    print("=" * 68)
+    print(" SUMMARY")
+    print("=" * 68)
     for r in results:
         print(f"  {r['suite']:16} {'ok' if r['ok'] else 'FAILED':>7}  "
               f"{r['seconds']:>7.1f}s  {r['error']}")
     failed = [r for r in results if not r["ok"]]
     print(f"\n{len(results) - len(failed)}/{len(results)} suites completed")
-    return results
+    if failed:
+        print(f"FAILED: {', '.join(r['suite'] for r in failed)}")
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

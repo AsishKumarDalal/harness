@@ -269,3 +269,17 @@ def banner(title: str) -> None:
 
 def hr(char="-"):
     print(char * 68)
+
+
+def finish(payload: dict) -> None:
+    """End a suite: print the verdict and exit non-zero if anything failed.
+
+    This is what makes the suite usable as a CI gate — a failing check
+    has to fail the process, not just print a red line.
+    """
+    report = payload.get("report") or {}
+    failed = int(report.get("failed", 0))
+    if failed:
+        print(f"\n{failed} check(s) FAILED")
+        sys.exit(1)
+    sys.exit(0)
